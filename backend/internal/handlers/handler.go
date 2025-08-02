@@ -1,7 +1,10 @@
 package handlers
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
+	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
 
 // GET /:slug
@@ -25,8 +28,14 @@ func GetResources(c *gin.Context) {
 
 // POST /api/private/resource
 func CreateResource(c *gin.Context) {
+	var request models.CreateResourceRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
 	// Handler logic for creating a resource
-	c.JSON(201, gin.H{"message": "Resource created"})
+	c.JSON(http.StatusCreated, gin.H{"message": "Resource created"})
 }
 
 // PATCH /api/private/resource/:slug
