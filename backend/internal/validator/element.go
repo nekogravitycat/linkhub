@@ -18,7 +18,7 @@ func ValidateRawSlug(slug string) error {
 	if len(slug) < 1 || len(slug) > 255 {
 		return fmt.Errorf("slug must be between 1 and 255 characters long")
 	}
-	slugPattern := regexp.MustCompile(`^[A-Za-z0-9_\-]+$`)
+	slugPattern := regexp.MustCompile(`^[\p{L}\d_-]{1,255}$`)
 	if !slugPattern.MatchString(slug) {
 		return fmt.Errorf("slug can only contain alphanumeric characters, hyphens, and underscores")
 	}
@@ -31,13 +31,13 @@ func ValidateSlug(slug string) error {
 	if len(slug) < 1 || len(slug) > 765 {
 		return fmt.Errorf("slug must be between 1 and 765 characters long")
 	}
-	decoded, err := url.QueryUnescape(slug)
+	decoded, err := url.PathUnescape(slug)
 	if err != nil {
 		return fmt.Errorf("slug must be a valid URL encoded string")
 	}
-	reEncoded := url.QueryEscape(decoded)
+	reEncoded := url.PathEscape(decoded)
 	if reEncoded != slug {
-		return fmt.Errorf("slug must be a canonical URL encoded string")
+		return fmt.Errorf("slug must be a canonical URL encoded string: %s -> %s", slug, reEncoded)
 	}
 	return nil
 }
@@ -146,7 +146,7 @@ func ValidateSize(size int64) error {
 // Validate if expires_at is a future timestamp.
 // Input must be in UTC in order to validate correctly.
 func ValidateExpiresAt(expiresAt time.Time, now time.Time) error {
-	if expiresAt.Before(now.UTC()) {
+	if expiresAt.UTC().Before(now.UTC()) {
 		return fmt.Errorf("expires_at must be in the future")
 	}
 	return nil

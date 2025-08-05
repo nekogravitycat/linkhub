@@ -7,28 +7,28 @@ import (
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
 
-func ValidateCreateLinkRequest(request models.CreateLinkRequest) error {
-	if err := ValidateSlug(request.Slug); err != nil {
+func ValidateCreateLinkRequest(request models.CreateLinkRequest, now time.Time) error {
+	if err := ValidateRawSlug(request.RawSlug); err != nil {
 		return fmt.Errorf("invalid slug: %w", err)
 	}
 	if err := ValidateTargetURL(request.TargetURL); err != nil {
 		return fmt.Errorf("invalid target URL: %w", err)
 	}
-	if request.Password != nil {
-		if err := ValidateRawPassword(*request.Password); err != nil {
+	if request.RawPassword != nil {
+		if err := ValidateRawPassword(*request.RawPassword); err != nil {
 			return fmt.Errorf("invalid password: %w", err)
 		}
 	}
 	if request.ExpiresAt != nil {
-		if err := ValidateExpiresAt(*request.ExpiresAt, time.Now()); err != nil {
+		if err := ValidateExpiresAt(*request.ExpiresAt, now); err != nil {
 			return fmt.Errorf("invalid expiration date: %w", err)
 		}
 	}
 	return nil
 }
 
-func ValidateCreateFileRequest(request models.CreateFileRequest) error {
-	if err := ValidateSlug(request.Slug); err != nil {
+func ValidateCreateFileRequest(request models.CreateFileRequest, now time.Time) error {
+	if err := ValidateRawSlug(request.RawSlug); err != nil {
 		return fmt.Errorf("invalid slug: %w", err)
 	}
 	if err := ValidateFilename(request.Filename); err != nil {
@@ -40,13 +40,13 @@ func ValidateCreateFileRequest(request models.CreateFileRequest) error {
 	if err := ValidateSize(request.Size); err != nil {
 		return fmt.Errorf("invalid file size: %w", err)
 	}
-	if request.Password != nil {
-		if err := ValidateRawPassword(*request.Password); err != nil {
+	if request.RawPassword != nil {
+		if err := ValidateRawPassword(*request.RawPassword); err != nil {
 			return fmt.Errorf("invalid password: %w", err)
 		}
 	}
 	if request.ExpiresAt != nil {
-		if err := ValidateExpiresAt(*request.ExpiresAt, time.Now()); err != nil {
+		if err := ValidateExpiresAt(*request.ExpiresAt, now); err != nil {
 			return fmt.Errorf("invalid expiration date: %w", err)
 		}
 	}

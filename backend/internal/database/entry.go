@@ -2,11 +2,15 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
+
+var ErrEntryNotFound = errors.New("entry not found")
 
 func GetEntry(ctx context.Context, slug string) (models.Entry, error) {
 	if err := validator.ValidateSlug(slug); err != nil {
@@ -32,6 +36,9 @@ func GetEntry(ctx context.Context, slug string) (models.Entry, error) {
 		&entry.CreatedAt,
 		&entry.ExpiresAt,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Entry{}, ErrEntryNotFound
+		}
 		return models.Entry{}, fmt.Errorf("failed to scan entry: %w", err)
 	}
 

@@ -19,6 +19,9 @@ var ErrDuplicateSlug = errors.New("duplicate slug")
 func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	entry, err := GetEntry(ctx, slug)
 	if err != nil {
+		if errors.Is(err, ErrEntryNotFound) {
+			return models.Resource{}, ErrEntryNotFound
+		}
 		return models.Resource{}, fmt.Errorf("failed to get entry: %w", err)
 	}
 
