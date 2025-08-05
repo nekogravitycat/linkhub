@@ -13,12 +13,12 @@ import (
 )
 
 // Validate if slug is 1 to 255 characters long.
-// It must contain only alphanumeric characters, hyphens, and underscores.
+// It may contain letters from any language (Unicode), digits, hyphens, and underscores.
 func ValidateRawSlug(slug string) error {
 	if len(slug) < 1 || len(slug) > 255 {
 		return fmt.Errorf("slug must be between 1 and 255 characters long")
 	}
-	slugPattern := regexp.MustCompile(`^[\p{L}\d_-]{1,255}$`)
+	slugPattern := regexp.MustCompile(`^[\p{L}\d_-]+$`)
 	if !slugPattern.MatchString(slug) {
 		return fmt.Errorf("slug can only contain alphanumeric characters, hyphens, and underscores")
 	}
@@ -97,7 +97,7 @@ func ValidateUUID(u string) error {
 }
 
 // Validate if filename is 1 to 255 characters long.
-// It must be valid UTF-8 and not contain illegal characters such as /, \, :, *, ?, ", <, >, |.
+// It must be valid UTF-8 and not contain illegal characters such as <, >, :, ", /,\, |, ?, *, or control characters.
 func ValidateFilename(filename string) error {
 	if len(filename) < 1 || len(filename) > 255 {
 		return fmt.Errorf("filename must be between 1 and 255 characters long")
@@ -111,7 +111,7 @@ func ValidateFilename(filename string) error {
 	if !utf8.ValidString(filename) {
 		return fmt.Errorf("filename must be a valid UTF-8 string")
 	}
-	illegalChars := regexp.MustCompile(`[<>:"/\\|?*\x00-\x1F\x7F]`)
+	illegalChars := regexp.MustCompile(`[<>:"/\\|?*\p{C}]`)
 	if illegalChars.MatchString(filename) {
 		return fmt.Errorf("filename contains invalid characters")
 	}
