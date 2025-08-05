@@ -2,9 +2,56 @@ package validator
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
+
+func ValidateCreateLinkRequest(request models.CreateLinkRequest) error {
+	if err := ValidateSlug(request.Slug); err != nil {
+		return fmt.Errorf("invalid slug: %w", err)
+	}
+	if err := ValidateTargetURL(request.TargetURL); err != nil {
+		return fmt.Errorf("invalid target URL: %w", err)
+	}
+	if request.Password != nil {
+		if err := ValidateRawPassword(*request.Password); err != nil {
+			return fmt.Errorf("invalid password: %w", err)
+		}
+	}
+	if request.ExpiresAt != nil {
+		if err := ValidateExpiresAt(*request.ExpiresAt, time.Now()); err != nil {
+			return fmt.Errorf("invalid expiration date: %w", err)
+		}
+	}
+	return nil
+}
+
+func ValidateCreateFileRequest(request models.CreateFileRequest) error {
+	if err := ValidateSlug(request.Slug); err != nil {
+		return fmt.Errorf("invalid slug: %w", err)
+	}
+	if err := ValidateFilename(request.Filename); err != nil {
+		return fmt.Errorf("invalid filename: %w", err)
+	}
+	if err := ValidateMIMEType(request.MIMEType); err != nil {
+		return fmt.Errorf("invalid MIME type: %w", err)
+	}
+	if err := ValidateSize(request.Size); err != nil {
+		return fmt.Errorf("invalid file size: %w", err)
+	}
+	if request.Password != nil {
+		if err := ValidateRawPassword(*request.Password); err != nil {
+			return fmt.Errorf("invalid password: %w", err)
+		}
+	}
+	if request.ExpiresAt != nil {
+		if err := ValidateExpiresAt(*request.ExpiresAt, time.Now()); err != nil {
+			return fmt.Errorf("invalid expiration date: %w", err)
+		}
+	}
+	return nil
+}
 
 // EntryID must be consistent across Resource and Link/File.
 func ValidateResource(resource models.Resource) error {

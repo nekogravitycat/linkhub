@@ -145,8 +145,8 @@ func ValidateSize(size int64) error {
 
 // Validate if expires_at is a future timestamp.
 // Input must be in UTC in order to validate correctly.
-func ValidateExpiresAt(expiresAt time.Time) error {
-	if expiresAt.Before(time.Now().UTC()) {
+func ValidateExpiresAt(expiresAt time.Time, now time.Time) error {
+	if expiresAt.Before(now.UTC()) {
 		return fmt.Errorf("expires_at must be in the future")
 	}
 	return nil

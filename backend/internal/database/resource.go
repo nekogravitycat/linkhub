@@ -2,16 +2,17 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
-// ResourceErrorType defines the category of a resource error.
-type ResourceErrorType string
+var ErrDuplicateSlug = errors.New("duplicate slug")
 
 // GetResource retrieves a Resource by its slug.
 // It fetches the Entry first, then loads either a Link or File based on the Entry's type.
@@ -50,7 +51,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	}
 }
 
-// InsertResource inserts the given resource into the database.
+// InsertResource validates and inserts the given resource into the database.
 // Entry ID will be omitted from the resource.
 // Returns the entry ID of the inserted resource and an error if any.
 // If the insertion fails, the returned entry ID will be -1.
@@ -76,6 +77,10 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 			resource.Entry.ExpiresAt,
 		).Scan(&entryID)
 		if err != nil || entryID <= 0 {
+			var pgErr *pgconn.PgError
+			if errors.As(err, &pgErr) && pgErr.Code == "23505" { // Unique violation
+				return ErrDuplicateSlug
+			}
 			return fmt.Errorf("failed to insert entry: %w", err)
 		}
 
@@ -120,7 +125,7 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 	return entryID, nil
 }
 
-// UpdateResource updates an existing resource in the database.
+// UpdateResource validates and updates an existing resource in the database.
 // - The entry type and created_at fields must not be changed.
 // - If updatePassword is false, the existing password_hash will be preserved.
 // - For link resources, only the target_url can be updated.

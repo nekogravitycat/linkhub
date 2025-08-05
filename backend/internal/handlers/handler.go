@@ -3,31 +3,60 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/nekogravitycat/linkhub/backend/internal/database"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
+func RegisterRoutes(router *gin.Engine) {
+	// Public routes
+	router.GET("/resource/:slug", getResource)
+	router.POST("/resource/:slug/unlock", unlockResource)
+
+	// Private routes
+	private := router.Group("/private")
+	{
+		private.POST("/link", createLinkResource)
+		private.POST("/file", createFileResource)
+		private.POST("/file/complete-multipart", completeMultipartUpload)
+		private.GET("/resources", getResources)
+		private.PATCH("/resources/:slug", updateResource)
+		private.DELETE("/resources/:slug", deleteResource)
+	}
+}
+
 // GET /resource/:slug
-func GetResource(c *gin.Context) {
+func getResource(c *gin.Context) {
 	slug := c.Param("slug")
+
+	if err := validator.ValidateSlug(slug); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid slug", err)
+		return
+	}
 
 	resource, err := database.GetResource(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+		respondWithError(c, http.StatusNotFound, "Resource not found", err)
+		return
+	}
+
+	if isExpired(resource, time.Now()) {
+		respondWithError(c, http.StatusNotFound, "Resource not found", nil)
 		return
 	}
 
 	if resource.Entry.PasswordHash != nil {
-		c.JSON(http.StatusForbidden, gin.H{"error": "Resource is password protected"})
+		respondWithError(c, http.StatusForbidden, "Resource is password protected", nil)
 		return
 	}
 
 	resp, err := toResponseWithDownloadURL(c.Request.Context(), resource)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate download URL"})
+		respondWithError(c, http.StatusInternalServerError, "Failed to generate download URL", err)
 		return
 	}
 
@@ -35,42 +64,48 @@ func GetResource(c *gin.Context) {
 }
 
 // POST /resource/:slug/unlock
-func UnlockResource(c *gin.Context) {
+func unlockResource(c *gin.Context) {
 	slug := c.Param("slug")
+
+	if err := validator.ValidateSlug(slug); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid slug", err)
+		return
+	}
 
 	var request models.UnlockResourceRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
 		return
 	}
 
 	resource, err := database.GetResource(c.Request.Context(), slug)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Resource not found"})
+		respondWithError(c, http.StatusNotFound, "Resource not found", err)
+		return
+	}
+
+	if isExpired(resource, time.Now()) {
+		respondWithError(c, http.StatusNotFound, "Resource not found", nil)
 		return
 	}
 
 	if resource.Entry.PasswordHash == nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Resource is not password protected"})
+		respondWithError(c, http.StatusBadRequest, "Resource is not password protected", nil)
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword(
-		[]byte(*resource.Entry.PasswordHash),
-		[]byte(request.Password),
-	); err != nil {
-		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid password"})
-			return
-		} else {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to verify password"})
-			return
-		}
+	ok, err := isPasswordCorrect(*resource.Entry.PasswordHash, request.Password)
+	if err != nil {
+		respondWithError(c, http.StatusInternalServerError, "Failed to verify password", err)
+		return
+	} else if !ok {
+		respondWithError(c, http.StatusUnauthorized, "Invalid password", nil)
+		return
 	}
 
 	resp, err := toResponseWithDownloadURL(c.Request.Context(), resource)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate download URL"})
+		respondWithError(c, http.StatusInternalServerError, "Failed to generate download URL", err)
 		return
 	}
 
@@ -78,51 +113,91 @@ func UnlockResource(c *gin.Context) {
 }
 
 // POST /private/link
-func CreateResource(c *gin.Context) {
+func createLinkResource(c *gin.Context) {
 	var request models.CreateLinkRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
 		return
 	}
 
-	// Handler logic for creating a resource
-	c.JSON(http.StatusCreated, gin.H{"message": "Resource created"})
+	if err := validator.ValidateCreateLinkRequest(request); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid request parameters", err)
+		return
+	}
+
+	resource, err := models.ToResourceFromLink(request)
+	if err != nil {
+		respondWithError(c, http.StatusBadRequest, "Failed to process request", err)
+		return
+	}
+
+	_, err = database.InsertResource(c.Request.Context(), resource)
+	if err != nil {
+		if errors.Is(err, database.ErrDuplicateSlug) {
+			respondWithError(c, http.StatusConflict, "Resource with this slug already exists", nil)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to create link resource", err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "Resource created successfully"})
 }
 
 // POST /private/file
-func CreateFileResource(c *gin.Context) {
+func createFileResource(c *gin.Context) {
 	var request models.CreateFileRequest
 	if err := c.ShouldBindJSON(&request); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
 		return
 	}
 
-	// Handler logic for creating a file resource
-	c.JSON(http.StatusCreated, gin.H{"message": "File resource created"})
+	if err := validator.ValidateCreateFileRequest(request); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid request parameters", err)
+		return
+	}
+
+	resource, err := models.ToResourceFromFile(request, uuid.NewString())
+	if err != nil {
+		respondWithError(c, http.StatusBadRequest, "Failed to process request", err)
+		return
+	}
+
+	_, err = database.InsertResource(c.Request.Context(), resource)
+	if err != nil {
+		if errors.Is(err, database.ErrDuplicateSlug) {
+			respondWithError(c, http.StatusConflict, "Resource with this slug already exists", nil)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to create file resource", err)
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{"message": "File resource created successfully"})
 }
 
 // POST /private/file/complete-multipart
-func CompleteMultipartUpload(c *gin.Context) {
+func completeMultipartUpload(c *gin.Context) {
 	// Handler logic for completing a multipart upload
 	// This would typically involve finalizing the file upload process
 	c.JSON(http.StatusOK, gin.H{"message": "Multipart upload completed"})
 }
 
 // GET /private/resources
-func GetResources(c *gin.Context) {
+func getResources(c *gin.Context) {
 	// Handler logic for retrieving all resources
 	c.JSON(200, gin.H{"message": "Resources retrieved"})
 }
 
 // PATCH /private/resources/:slug
-func UpdateResource(c *gin.Context) {
+func updateResource(c *gin.Context) {
 	// Handler logic for updating a resource by slug
 	slug := c.Param("slug")
 	c.JSON(200, gin.H{"slug": slug, "message": "Resource updated"})
 }
 
 // DELETE /private/resources/:slug
-func DeleteResource(c *gin.Context) {
+func deleteResource(c *gin.Context) {
 	// Handler logic for deleting a resource by slug
 	slug := c.Param("slug")
 	c.JSON(200, gin.H{"slug": slug, "message": "Resource deleted"})

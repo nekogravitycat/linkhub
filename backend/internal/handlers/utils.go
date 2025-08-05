@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Build GetResourceResponse from Resource.
@@ -35,4 +38,22 @@ func populateDownloadURL(ctx context.Context, resp *models.GetResourceResponse, 
 		return fmt.Errorf("failed to generate download URL: %w", err)
 	}
 	return nil
+}
+
+func isExpired(resource models.Resource, now time.Time) bool {
+	if resource.Entry.ExpiresAt == nil {
+		return false
+	}
+	return resource.Entry.ExpiresAt.UTC().Before(now.UTC())
+}
+
+func isPasswordCorrect(hash string, password string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+		return false, nil
+	}
+	return false, err
 }
