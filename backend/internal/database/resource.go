@@ -28,7 +28,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	case models.ResourceTypeLink:
 		link, err := getLink(ctx, entry.ID)
 		if err != nil {
-			return models.Resource{}, fmt.Errorf("failed to get link: %w", err)
+			return models.Resource{}, fmt.Errorf("entry exists but failed to get link: %w", err)
 		}
 		return models.Resource{
 			Entry: entry,
@@ -39,7 +39,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	case models.ResourceTypeFile:
 		file, err := getFile(ctx, entry.ID)
 		if err != nil {
-			return models.Resource{}, fmt.Errorf("failed to get file: %w", err)
+			return models.Resource{}, fmt.Errorf("entry exists but failed to get file: %w", err)
 		}
 		return models.Resource{
 			Entry: entry,
@@ -50,6 +50,72 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	default:
 		return models.Resource{}, fmt.Errorf("unknown resource type: %s", entry.Type)
 	}
+}
+
+func ListResources(ctx context.Context, offset int, limit int) ([]models.Resource, error) {
+	db := GetDBClient()
+	const query = `
+		SELECT
+			e.id, e.slug, e.type, e.password_hash, e.created_at, e.expires_at,
+			l.target_url,
+			f.file_uuid, f.filename, f.mime_type, f.size, f.pending
+		FROM entries e
+		LEFT JOIN links l ON e.id = l.entry_id
+		LEFT JOIN files f ON e.id = f.entry_id
+		ORDER BY e.id
+		OFFSET $1 LIMIT $2
+	`
+	rows, err := db.Query(ctx, query, offset, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query resources with join: %w", err)
+	}
+	defer rows.Close()
+
+	resources := []models.Resource{}
+	for rows.Next() {
+		var (
+			entry         models.Entry
+			linkTargetURL *string
+			fileFileUUID  *string
+			fileFilename  *string
+			fileMIMEType  *string
+			fileSize      *int64
+			filePending   *bool
+		)
+
+		if err := rows.Scan(
+			&entry.ID, &entry.Slug, &entry.Type, &entry.PasswordHash, &entry.CreatedAt, &entry.ExpiresAt,
+			&linkTargetURL,
+			&fileFileUUID, &fileFilename, &fileMIMEType, &fileSize, &filePending,
+		); err != nil {
+			return nil, fmt.Errorf("failed to scan joined resource: %w", err)
+		}
+		resource := models.Resource{Entry: entry}
+		// Attach link or file depending on the type
+		switch entry.Type {
+		case models.ResourceTypeLink:
+			resource.Link = &models.Link{
+				EntryID:   entry.ID,
+				TargetURL: *linkTargetURL,
+			}
+		case models.ResourceTypeFile:
+			resource.File = &models.File{
+				EntryID:  entry.ID,
+				FileUUID: *fileFileUUID,
+				Filename: *fileFilename,
+				MIMEType: *fileMIMEType,
+				Size:     *fileSize,
+				Pending:  *filePending,
+			}
+		}
+		resources = append(resources, resource)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over resources: %w", err)
+	}
+
+	return resources, nil
 }
 
 // InsertResource validates and inserts the given resource into the database.

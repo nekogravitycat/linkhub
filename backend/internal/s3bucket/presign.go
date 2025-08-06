@@ -92,7 +92,6 @@ func (p *Presigner) Put(ctx context.Context, uuid string, mime string) (string, 
 	if err != nil {
 		return "", fmt.Errorf("failed to presign PUT object: %w", err)
 	}
-	fmt.Printf("Presigned PUT URL: %v\n", output) // Debug log
 	return output.URL, nil
 }
 

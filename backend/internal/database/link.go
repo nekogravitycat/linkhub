@@ -31,36 +31,6 @@ func getLink(ctx context.Context, entryID int64) (models.Link, error) {
 	return link, nil
 }
 
-func listLinks(ctx context.Context) ([]models.Link, error) {
-	const query = `
-		SELECT entry_id, target_url
-		FROM links
-	`
-
-	db := GetDBClient()
-
-	rows, err := db.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query links: %w", err)
-	}
-	defer rows.Close()
-
-	var links []models.Link
-	for rows.Next() {
-		var link models.Link
-		if err := rows.Scan(&link.EntryID, &link.TargetURL); err != nil {
-			return nil, fmt.Errorf("failed to scan link: %w", err)
-		}
-		links = append(links, link)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate links: %w", err)
-	}
-
-	return links, nil
-}
-
 func UpdateLink(ctx context.Context, link models.Link) error {
 	if err := validator.ValidateLink(link); err != nil {
 		return fmt.Errorf("failed to validate link: %w", err)

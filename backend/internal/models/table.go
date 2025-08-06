@@ -25,6 +25,9 @@ CREATE TABLE files (
 	size BIGINT NOT NULL,
 	pending BOOLEAN DEFAULT TRUE NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_links_entry_id ON links(entry_id);
+CREATE INDEX IF NOT EXISTS idx_files_entry_id ON files(entry_id);
 */
 
 type ResourceType string
@@ -41,12 +44,12 @@ type Resource struct {
 }
 
 type Entry struct {
-	ID           int64        `json:"id"`                      // Unique identifier assigned by the database
-	Slug         string       `json:"slug"`                    // URL-escaped slug identifier (must be unique)
-	Type         ResourceType `json:"type"`                    // Type of resource: either "link" or "file"
-	PasswordHash *string      `json:"password_hash,omitempty"` // Optional bcrypt hash of the password, if password-protected
-	CreatedAt    time.Time    `json:"created_at"`              // Timestamp when the resource was created (set automatically)
-	ExpiresAt    *time.Time   `json:"expires_at,omitempty"`    // Optional expiration timestamp; after this, the resource is considered expired
+	ID           int64        `json:"id"`            // Unique identifier assigned by the database
+	Slug         string       `json:"slug"`          // URL-escaped slug identifier (must be unique)
+	Type         ResourceType `json:"type"`          // Type of resource: either "link" or "file"
+	PasswordHash *string      `json:"password_hash"` // Optional bcrypt hash of the password, if password-protected
+	CreatedAt    time.Time    `json:"created_at"`    // Timestamp when the resource was created (set automatically)
+	ExpiresAt    *time.Time   `json:"expires_at"`    // Optional expiration timestamp; after this, the resource is considered expired
 }
 
 type Link struct {
@@ -71,5 +74,5 @@ type EntryUpdate struct {
 }
 
 type LinkUpdate struct {
-	TargetURL string `json:"target_url,omitempty"` // New target URL for the link
+	TargetURL string `json:"target_url"` // New target URL for the link
 }

@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -48,7 +49,7 @@ func getResource(c *gin.Context) {
 		respondWithError(c, http.StatusBadRequest, "Invalid slug", err)
 		return
 	}
-	// Check if the resource exists and is not expired
+	// Fetch the resource from the database
 	resource, err := database.GetResource(c.Request.Context(), slug)
 	if err != nil {
 		if errors.Is(err, database.ErrEntryNotFound) {
@@ -58,6 +59,7 @@ func getResource(c *gin.Context) {
 		respondWithError(c, http.StatusInternalServerError, "Failed to get resource", err)
 		return
 	}
+	// If the resource is expired, return a not found error
 	if isExpired(resource, time.Now()) {
 		respondWithError(c, http.StatusNotFound, "Resource not found", nil)
 		return
@@ -67,7 +69,18 @@ func getResource(c *gin.Context) {
 		respondWithError(c, http.StatusForbidden, "Resource is password protected", nil)
 		return
 	}
-	// If the resource is a file, generate a download URL
+	// If the resource is a file, check if it is uploaded
+	if resource.Entry.Type == models.ResourceTypeFile {
+		if resource.File == nil {
+			respondWithError(c, http.StatusInternalServerError, "File entry exists but file is missing", nil)
+			return
+		}
+		if resource.File.Pending {
+			respondWithError(c, http.StatusConflict, "File is not uploaded yet", nil)
+			return
+		}
+	}
+	// Build the response, populate download URL if needed
 	resp, err := toResponseWithDownloadURL(c.Request.Context(), resource)
 	if err != nil {
 		respondWithError(c, http.StatusInternalServerError, "Failed to generate download URL", err)
@@ -128,8 +141,33 @@ func unlockResource(c *gin.Context) {
 
 // GET /private/resources
 func listResources(c *gin.Context) {
-	// Handler logic for retrieving all resources
-	c.JSON(200, gin.H{"message": "Resources retrieved"})
+	page, errPage := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, errLimit := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	// Validate pagination parameters
+	if errPage != nil || errLimit != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid pagination parameters, page and limit must be integers.", nil)
+		return
+	}
+	if page < 1 || limit < 1 || limit > 100 {
+		respondWithError(c, http.StatusBadRequest, "Invalid pagination parameters, page and limit must be positive and limit must not exceed 100.", nil)
+		return
+	}
+	// List resources from the database
+	offset := (page - 1) * limit
+	resources, err := database.ListResources(c.Request.Context(), offset, limit)
+	if err != nil {
+		respondWithError(c, http.StatusInternalServerError, "Failed to list resources", err)
+		return
+	}
+	// Redact password hashes from the resources
+	redactedPasswordHash := "REDACTED"
+	for i := range resources {
+		if resources[i].Entry.PasswordHash != nil {
+			resources[i].Entry.PasswordHash = &redactedPasswordHash
+		}
+	}
+	// Return the list of resources
+	c.JSON(http.StatusOK, resources)
 }
 
 // DELETE /private/resources/:slug
@@ -202,6 +240,7 @@ func createLinkResource(c *gin.Context) {
 		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
 		return
 	}
+	log.Printf("Creating link resource: %+v", request)
 	// Validate the request parameters
 	if err := validator.ValidateCreateLinkRequest(request, time.Now()); err != nil {
 		respondWithError(c, http.StatusBadRequest, "Invalid request parameters", err)

@@ -44,42 +44,6 @@ func getEntry(ctx context.Context, slug string) (models.Entry, error) {
 	return entry, nil
 }
 
-func listEntries(ctx context.Context) ([]models.Entry, error) {
-	const query = `
-		SELECT id, slug, type, password_hash, created_at, expires_at
-		FROM entries
-	`
-	db := GetDBClient()
-
-	rows, err := db.Query(ctx, query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to query entries: %w", err)
-	}
-	defer rows.Close()
-
-	var entries []models.Entry
-	for rows.Next() {
-		var entry models.Entry
-		if err := rows.Scan(
-			&entry.ID,
-			&entry.Slug,
-			&entry.Type,
-			&entry.PasswordHash,
-			&entry.CreatedAt,
-			&entry.ExpiresAt,
-		); err != nil {
-			return nil, fmt.Errorf("failed to scan entry: %w", err)
-		}
-		entries = append(entries, entry)
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("failed to iterate entries: %w", err)
-	}
-
-	return entries, nil
-}
-
 // Update slug, password_hash, and expires_at of an entry.
 // If updatePassword is false, it uses the existing password hash.
 func UpdateEntry(ctx context.Context, oldSlug string, fields models.EntryUpdate) error {
