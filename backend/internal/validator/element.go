@@ -108,6 +108,9 @@ func ValidateFilename(filename string) error {
 	if strings.Contains(filename, "..") {
 		return fmt.Errorf("filename cannot contain consecutive dots")
 	}
+	if strings.TrimSpace(filename) != filename {
+		return fmt.Errorf("filename cannot start or end with whitespace")
+	}
 	if !utf8.ValidString(filename) {
 		return fmt.Errorf("filename must be a valid UTF-8 string")
 	}

@@ -12,12 +12,10 @@ import (
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
-var ErrDuplicateSlug = errors.New("duplicate slug")
-
 // GetResource retrieves a Resource by its slug.
 // It fetches the Entry first, then loads either a Link or File based on the Entry's type.
 func GetResource(ctx context.Context, slug string) (models.Resource, error) {
-	entry, err := GetEntry(ctx, slug)
+	entry, err := getEntry(ctx, slug)
 	if err != nil {
 		if errors.Is(err, ErrEntryNotFound) {
 			return models.Resource{}, ErrEntryNotFound
@@ -28,7 +26,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	switch entry.Type {
 
 	case models.ResourceTypeLink:
-		link, err := GetLink(ctx, entry.ID)
+		link, err := getLink(ctx, entry.ID)
 		if err != nil {
 			return models.Resource{}, fmt.Errorf("failed to get link: %w", err)
 		}
@@ -39,7 +37,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 		}, nil
 
 	case models.ResourceTypeFile:
-		file, err := GetFile(ctx, entry.ID)
+		file, err := getFile(ctx, entry.ID)
 		if err != nil {
 			return models.Resource{}, fmt.Errorf("failed to get file: %w", err)
 		}
@@ -55,7 +53,7 @@ func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 }
 
 // InsertResource validates and inserts the given resource into the database.
-// Entry ID will be omitted from the resource.
+// Entry ID and File.Pending will be omitted from the resource.
 // Returns the entry ID of the inserted resource and an error if any.
 // If the insertion fails, the returned entry ID will be -1.
 func InsertResource(ctx context.Context, resource models.Resource) (int64, error) {
@@ -64,7 +62,6 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 	}
 
 	var entryID int64 = -1
-
 	db := GetDBClient()
 
 	err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
@@ -244,6 +241,35 @@ func UpdateResource(ctx context.Context, resource models.Resource, updatePasswor
 
 	if err != nil {
 		return fmt.Errorf("update resource transaction failed: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteResourceBySlug(ctx context.Context, slug string) error {
+	entry, err := getEntry(ctx, slug)
+	if err != nil {
+		if errors.Is(err, ErrEntryNotFound) {
+			return ErrEntryNotFound
+		}
+		return fmt.Errorf("failed to find entry: %w", err)
+	}
+
+	err = DeleteResourceByID(ctx, entry.ID)
+	if err != nil {
+		return fmt.Errorf("failed to delete resource: %w", err)
+	}
+
+	return nil
+}
+
+func DeleteResourceByID(ctx context.Context, entryID int64) error {
+	err := deleteEntry(ctx, entryID)
+	if err != nil {
+		if errors.Is(err, ErrEntryNotFound) {
+			return ErrEntryNotFound
+		}
+		return fmt.Errorf("failed to delete entry: %w", err)
 	}
 
 	return nil

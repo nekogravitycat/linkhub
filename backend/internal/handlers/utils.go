@@ -4,12 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
-	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -18,6 +16,14 @@ func isExpired(resource models.Resource, now time.Time) bool {
 		return false
 	}
 	return resource.Entry.ExpiresAt.UTC().Before(now.UTC())
+}
+
+func calculatePasswordHash(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
+	if err != nil {
+		return "", err
+	}
+	return string(hash), nil
 }
 
 func isPasswordCorrect(hash string, password string) (bool, error) {
@@ -31,123 +37,66 @@ func isPasswordCorrect(hash string, password string) (bool, error) {
 	return false, err
 }
 
-// If the resource is a file, DownloadURL will be empty and need to populate.
-func toGetResourceResponse(resource models.Resource) models.GetResourceResponse {
-	resp := models.GetResourceResponse{
-		Type: resource.Entry.Type,
-	}
-
-	switch resource.Entry.Type {
-	case models.ResourceTypeLink:
-		if resource.Link != nil {
-			resp.Link = &models.PublicLink{
-				TargetURL: resource.Link.TargetURL,
-			}
-		}
-
-	case models.ResourceTypeFile:
-		if resource.File != nil {
-			resp.File = &models.PublicFile{
-				DownloadURL: "",
-				Filename:    resource.File.Filename,
-				MIMEType:    resource.File.MIMEType,
-				Size:        resource.File.Size,
-			}
-		}
-	}
-
-	return resp
-}
-
 func populateDownloadURL(ctx context.Context, resp *models.GetResourceResponse, uuid string) error {
 	if resp.Type != models.ResourceTypeFile {
 		return fmt.Errorf("cannot populate download URL for non-file resource")
 	}
-	s3 := s3bucket.GetS3Client()
+	s3Client := s3bucket.GetS3Client()
+	presigner := s3bucket.NewPresigner(s3Client, 1*time.Minute)
 	var err error
-	resp.File.DownloadURL, err = s3bucket.NewPresigner(s3).Get(ctx, uuid)
+	resp.File.DownloadURL, err = presigner.Get(ctx, uuid)
 	if err != nil {
 		return fmt.Errorf("failed to generate download URL: %w", err)
 	}
 	return nil
 }
 
-// Build GetResourceResponse from Resource.
-// If the resource is a file, it populates the DownloadURL.
-// Return an error if the download URL cannot be generated.
-func toResponseWithDownloadURL(ctx context.Context, resource models.Resource) (models.GetResourceResponse, error) {
-	resp := toGetResourceResponse(resource)
-
-	// If the resource is a file, populate the DownloadURL.
-	if resp.Type == models.ResourceTypeFile {
-		if err := populateDownloadURL(ctx, &resp, resource.File.FileUUID); err != nil {
-			return models.GetResourceResponse{}, fmt.Errorf("failed to populate download URL: %w", err)
-		}
+// Create the upload response based on the file size.
+// It selects single or multipart upload, initializes the upload session if needed,
+// and returns the appropriate pre-signed URL(s) for uploading to S3.
+func GenerateUploadResponse(ctx context.Context, request models.CreateFileRequest, fileUUID string) (models.UploadFileResponse, error) {
+	resp := models.UploadFileResponse{
+		FileUUID: fileUUID,
 	}
-
+	// Create the S3 client and presigner
+	s3Client := s3bucket.GetS3Client()
+	presigner := s3bucket.NewPresigner(s3Client, 30*time.Minute)
+	// Decide upload type based on the request size
+	const partSize = 50 * 1024 * 1024 // 50MB
+	if request.Size <= partSize {
+		// Single file upload
+		resp.Upload.Type = models.UploadTypeSingle
+		// Generate a pre-signed URL for the single upload
+		uploadURL, err := presigner.Put(ctx, fileUUID, request.MIMEType)
+		if err != nil {
+			return models.UploadFileResponse{}, fmt.Errorf("failed to get upload URL: %w", err)
+		}
+		resp.Upload.UploadURL = &uploadURL
+	} else {
+		// Multipart upload, 50MB per part
+		resp.Upload.Type = models.UploadTypeMultipart
+		// Create multipart upload session
+		objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
+		createResp, err := objectStorage.CreateMultipartUpload(ctx, fileUUID, request.MIMEType)
+		if err != nil || createResp.UploadId == nil {
+			return models.UploadFileResponse{}, fmt.Errorf("failed to create multipart upload: %w", err)
+		}
+		resp.Upload.UploadID = createResp.UploadId
+		// Generate presigned URLs for each part
+		numParts := int((request.Size + partSize - 1) / partSize) // Round up to nearest part size
+		partURLs, err := presigner.UploadPart(ctx, fileUUID, *resp.Upload.UploadID, numParts)
+		if err != nil {
+			return models.UploadFileResponse{}, fmt.Errorf("failed to generate multipart upload URLs: %w", err)
+		}
+		// Build multipart upload response
+		parts := []models.MultipartPart{}
+		for i, url := range partURLs {
+			parts = append(parts, models.MultipartPart{
+				PartNumber: i + 1, // 1-based index
+				UploadURL:  url,
+			})
+		}
+		resp.Upload.Parts = parts
+	}
 	return resp, nil
-}
-
-func toResourceFromLink(request models.CreateLinkRequest) (models.Resource, error) {
-	slug := url.PathEscape(request.RawSlug)
-
-	var passwordHash *string = nil
-	if request.RawPassword != nil {
-		if validator.ValidateRawPassword(*request.RawPassword) != nil {
-			return models.Resource{}, fmt.Errorf("invalid password format")
-		}
-		hashBytes, err := bcrypt.GenerateFromPassword([]byte(*request.RawPassword), 12)
-		if err != nil {
-			return models.Resource{}, fmt.Errorf("failed to hash password: %w", err)
-		}
-		hash := string(hashBytes)
-		passwordHash = &hash
-	}
-
-	return models.Resource{
-		Entry: models.Entry{
-			ID:           0, // ID will be set by the database
-			Slug:         slug,
-			Type:         models.ResourceTypeLink,
-			PasswordHash: passwordHash,
-			CreatedAt:    time.Now(), // CreatedAt will be set by the database
-			ExpiresAt:    request.ExpiresAt,
-		},
-		Link: &models.Link{
-			EntryID:   0, // EntryID will be set by the database
-			TargetURL: request.TargetURL,
-		},
-	}, nil
-}
-
-func toResourceFromFile(request models.CreateFileRequest, uuid string) (models.Resource, error) {
-	slug := url.PathEscape(request.RawSlug)
-
-	var passwordHash *string = nil
-	if request.RawPassword != nil {
-		hashBytes, err := bcrypt.GenerateFromPassword([]byte(*request.RawPassword), 12)
-		if err != nil {
-			return models.Resource{}, fmt.Errorf("failed to hash password: %w", err)
-		}
-		hash := string(hashBytes)
-		passwordHash = &hash
-	}
-
-	return models.Resource{
-		Entry: models.Entry{
-			ID:           0, // ID will be set by the database
-			Slug:         slug,
-			Type:         models.ResourceTypeFile,
-			PasswordHash: passwordHash,
-			CreatedAt:    time.Now(), // CreatedAt will be set by the database
-			ExpiresAt:    request.ExpiresAt,
-		},
-		File: &models.File{
-			EntryID:  0, // EntryID will be set by the database
-			FileUUID: uuid,
-			Filename: request.Filename,
-			MIMEType: request.MIMEType,
-			Size:     request.Size,
-		},
-	}, nil
 }

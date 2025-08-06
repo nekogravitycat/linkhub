@@ -6,13 +6,12 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
-var ErrEntryNotFound = errors.New("entry not found")
-
-func GetEntry(ctx context.Context, slug string) (models.Entry, error) {
+func getEntry(ctx context.Context, slug string) (models.Entry, error) {
 	if err := validator.ValidateSlug(slug); err != nil {
 		return models.Entry{}, err
 	}
@@ -45,7 +44,7 @@ func GetEntry(ctx context.Context, slug string) (models.Entry, error) {
 	return entry, nil
 }
 
-func ListEntries(ctx context.Context) ([]models.Entry, error) {
+func listEntries(ctx context.Context) ([]models.Entry, error) {
 	const query = `
 		SELECT id, slug, type, password_hash, created_at, expires_at
 		FROM entries
@@ -81,47 +80,58 @@ func ListEntries(ctx context.Context) ([]models.Entry, error) {
 	return entries, nil
 }
 
-// Use InsertResource to insert a entry along with its link/file metadata.
-// This ensures both the entry and the associated link/file are inserted atomically in a single transaction.
-
-/*
-// Will omit entry.created_at since it will be set by the database
-func InsertEntry(ctx context.Context, entry models.Entry) error {
-	if err := validator.ValidateEntry(entry); err != nil {
-		return err
+// Update slug, password_hash, and expires_at of an entry.
+// If updatePassword is false, it uses the existing password hash.
+func UpdateEntry(ctx context.Context, oldSlug string, fields models.EntryUpdate) error {
+	if err := validator.ValidateEntryUpdate(fields); err != nil {
+		return fmt.Errorf("failed to validate entry update: %w", err)
 	}
 
-	db := GetDBClient()
-
-	const query = `
-		INSERT INTO entries (slug, type, password_hash, expires_at)
-		VALUES ($1, $2, $3, $4)
-	`
-	_, err := db.Exec(ctx, query, entry.Slug, entry.Type, entry.PasswordHash, entry.ExpiresAt)
+	// Get the existing entry
+	existingEntry, err := getEntry(ctx, oldSlug)
 	if err != nil {
-		return fmt.Errorf("failed to insert entry: %w", err)
+		if errors.Is(err, ErrEntryNotFound) {
+			return fmt.Errorf("entry not found: %w", err)
+		}
+		return fmt.Errorf("failed to get existing entry: %w", err)
 	}
 
-	return nil
-}
-*/
-
-// Will omit entry.created_at since it should not change
-func UpdateEntry(ctx context.Context, entry models.Entry) error {
-	if err := validator.ValidateEntry(entry); err != nil {
-		return err
+	// Use the existing slug if not provided
+	if fields.Slug == nil {
+		fields.Slug = &existingEntry.Slug
+	}
+	// Use the existing expires_at if not provided
+	if fields.ExpiresAt == nil {
+		fields.ExpiresAt = existingEntry.ExpiresAt
+	}
+	// Use the existing password hash if not updating
+	if !fields.UpdatePassword {
+		fields.PasswordHash = existingEntry.PasswordHash
 	}
 
 	db := GetDBClient()
 
+	// Update the entry in the database
 	const query = `
 		UPDATE entries
-		SET slug = $2, type = $3, password_hash = $4, expires_at = $5
+		SET slug = $2, password_hash = $3, expires_at = $4
 		WHERE id = $1
 	`
-	_, err := db.Exec(ctx, query, entry.ID, entry.Slug, entry.Type, entry.PasswordHash, entry.ExpiresAt)
+	cmdTag, err := db.Exec(ctx, query,
+		existingEntry.ID,
+		fields.Slug,
+		fields.PasswordHash,
+		fields.ExpiresAt,
+	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // Unique violation
+			return ErrDuplicateSlug
+		}
 		return fmt.Errorf("failed to update entry: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("no entry was updated (slug: %s)", oldSlug)
 	}
 
 	return nil
@@ -129,7 +139,7 @@ func UpdateEntry(ctx context.Context, entry models.Entry) error {
 
 // It deletes the entry and all associated resources (links/files).
 // This is a cascading delete due to the ON DELETE CASCADE in the foreign key constraints.
-func DeleteEntry(ctx context.Context, id int64) error {
+func deleteEntry(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return fmt.Errorf("invalid entry ID: must be positive")
 	}
@@ -143,6 +153,9 @@ func DeleteEntry(ctx context.Context, id int64) error {
 
 	cmdTag, err := db.Exec(ctx, query, id)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrEntryNotFound
+		}
 		return fmt.Errorf("failed to delete entry: %w", err)
 	}
 

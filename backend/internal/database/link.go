@@ -8,7 +8,7 @@ import (
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
-func GetLink(ctx context.Context, entryID int64) (models.Link, error) {
+func getLink(ctx context.Context, entryID int64) (models.Link, error) {
 	if entryID <= 0 {
 		return models.Link{}, fmt.Errorf("invalid entry ID: must be positive")
 	}
@@ -31,7 +31,7 @@ func GetLink(ctx context.Context, entryID int64) (models.Link, error) {
 	return link, nil
 }
 
-func ListLinks(ctx context.Context) ([]models.Link, error) {
+func listLinks(ctx context.Context) ([]models.Link, error) {
 	const query = `
 		SELECT entry_id, target_url
 		FROM links
@@ -61,49 +61,31 @@ func ListLinks(ctx context.Context) ([]models.Link, error) {
 	return links, nil
 }
 
-// Use InsertResource to insert a link entry along with its link metadata.
-// This ensures both the entry and the associated link are inserted atomically in a single transaction.
-
-/*
-func InsertLink(ctx context.Context, link models.Link) error {
-	if err := validator.ValidateLink(link); err != nil {
-		return err
-	}
-
-	db := GetDBClient()
-
-	const query = `
-		INSERT INTO links (entry_id, target_url)
-		VALUES ($1, $2)
-	`
-	_, err := db.Exec(ctx, query, link.EntryID, link.TargetURL)
-	if err != nil {
-		return fmt.Errorf("failed to insert link: %w", err)
-	}
-
-	return nil
-}
-*/
-
 func UpdateLink(ctx context.Context, link models.Link) error {
 	if err := validator.ValidateLink(link); err != nil {
-		return err
+		return fmt.Errorf("failed to validate link: %w", err)
 	}
 
 	db := GetDBClient()
 
 	const query = `
 		UPDATE links
-		SET target_url = $1
-		WHERE entry_id = $2
+		SET target_url = $2
+		WHERE entry_id = $1
 	`
-	_, err := db.Exec(ctx, query, link.TargetURL, link.EntryID)
+	cmdTag, err := db.Exec(ctx, query, link.EntryID, link.TargetURL)
 	if err != nil {
 		return fmt.Errorf("failed to update link: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("no link was updated (entry_id: %d)", link.EntryID)
 	}
 
 	return nil
 }
+
+// Use InsertResource to insert a link entry along with its link metadata.
+// This ensures both the entry and the associated link are inserted atomically in a single transaction.
 
 // Links are tied to entries and will be automatically deleted when the corresponding entry is deleted.
 // Therefore, to delete a link, delete its associated entry instead.

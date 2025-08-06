@@ -3,26 +3,33 @@ package s3bucket
 import (
 	"context"
 	"fmt"
+	"log"
 	"os"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
 type Presigner struct {
-	client *s3.PresignClient
+	client      *s3.PresignClient
+	urlLifetime time.Duration
 }
 
 // NewPresigner constructs a Presigner using an s3.Client
-func NewPresigner(s3Client *s3.Client) *Presigner {
+func NewPresigner(s3Client *s3.Client, urlLifetime time.Duration) *Presigner {
 	return &Presigner{
-		client: s3.NewPresignClient(s3Client),
+		client:      s3.NewPresignClient(s3Client),
+		urlLifetime: urlLifetime,
 	}
 }
 
 // getBucketAndKey returns the bucket name and object key
 func getBucketAndKey(uuid string) (string, string) {
-	bucket := os.Getenv("R2_BUCKET_NAME")
+	bucket, ok := os.LookupEnv("S3_BUCKET_NAME")
+	if !ok || bucket == "" {
+		log.Fatal("S3_BUCKET_NAME environment variable is not set")
+	}
 	key := fmt.Sprintf("files/%s", uuid)
 	return bucket, key
 }
@@ -36,6 +43,9 @@ func (p *Presigner) Head(ctx context.Context, uuid string) (string, error) {
 		&s3.HeadObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
+		},
+		func(opts *s3.PresignOptions) {
+			opts.Expires = p.urlLifetime
 		},
 	)
 	if err != nil {
@@ -53,6 +63,9 @@ func (p *Presigner) Get(ctx context.Context, uuid string) (string, error) {
 		&s3.GetObjectInput{
 			Bucket: aws.String(bucket),
 			Key:    aws.String(key),
+		},
+		func(opts *s3.PresignOptions) {
+			opts.Expires = p.urlLifetime
 		},
 	)
 	if err != nil {
@@ -72,10 +85,14 @@ func (p *Presigner) Put(ctx context.Context, uuid string, mime string) (string, 
 			Key:         aws.String(key),
 			ContentType: aws.String(mime),
 		},
+		func(opts *s3.PresignOptions) {
+			opts.Expires = p.urlLifetime
+		},
 	)
 	if err != nil {
 		return "", fmt.Errorf("failed to presign PUT object: %w", err)
 	}
+	fmt.Printf("Presigned PUT URL: %v\n", output) // Debug log
 	return output.URL, nil
 }
 
@@ -96,6 +113,9 @@ func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string
 				Key:        aws.String(key),
 				PartNumber: aws.Int32(int32(idx + 1)),
 				UploadId:   aws.String(uploadID),
+			},
+			func(opts *s3.PresignOptions) {
+				opts.Expires = p.urlLifetime
 			},
 		)
 		if err != nil {

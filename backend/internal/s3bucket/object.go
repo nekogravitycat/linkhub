@@ -2,6 +2,7 @@ package s3bucket
 
 import (
 	"context"
+	"log"
 	"os"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -27,18 +28,21 @@ type S3ObjectStorage struct {
 }
 
 func NewS3ObjectStorage(client *s3.Client) *S3ObjectStorage {
-	bucket := os.Getenv("S3_BUCKET_NAME")
+	bucket, ok := os.LookupEnv("S3_BUCKET_NAME")
+	if !ok || bucket == "" {
+		log.Fatal("S3_BUCKET_NAME environment variable is not set")
+	}
 	return &S3ObjectStorage{
 		client:     client,
 		bucketName: bucket,
 	}
 }
 
-func (s *S3ObjectStorage) HeadObject(uuid string) (*s3.HeadObjectOutput, error) {
+func (s *S3ObjectStorage) HeadObject(ctx context.Context, uuid string) (*s3.HeadObjectOutput, error) {
 	objectKey := "files/" + uuid
 
 	return s.client.HeadObject(
-		context.TODO(),
+		ctx,
 		&s3.HeadObjectInput{
 			Bucket: aws.String(s.bucketName),
 			Key:    aws.String(objectKey),
@@ -46,11 +50,11 @@ func (s *S3ObjectStorage) HeadObject(uuid string) (*s3.HeadObjectOutput, error) 
 	)
 }
 
-func (s *S3ObjectStorage) DeleteObject(uuid string) (*s3.DeleteObjectOutput, error) {
+func (s *S3ObjectStorage) DeleteObject(ctx context.Context, uuid string) (*s3.DeleteObjectOutput, error) {
 	objectKey := "files/" + uuid
 
 	return s.client.DeleteObject(
-		context.TODO(),
+		ctx,
 		&s3.DeleteObjectInput{
 			Bucket: aws.String(s.bucketName),
 			Key:    aws.String(objectKey),
@@ -58,11 +62,11 @@ func (s *S3ObjectStorage) DeleteObject(uuid string) (*s3.DeleteObjectOutput, err
 	)
 }
 
-func (s *S3ObjectStorage) CreateMultipartUpload(uuid string, mime string) (*s3.CreateMultipartUploadOutput, error) {
+func (s *S3ObjectStorage) CreateMultipartUpload(ctx context.Context, uuid string, mime string) (*s3.CreateMultipartUploadOutput, error) {
 	objectKey := "files/" + uuid
 
 	return s.client.CreateMultipartUpload(
-		context.TODO(),
+		ctx,
 		&s3.CreateMultipartUploadInput{
 			Bucket:      aws.String(s.bucketName),
 			Key:         aws.String(objectKey),
@@ -71,7 +75,7 @@ func (s *S3ObjectStorage) CreateMultipartUpload(uuid string, mime string) (*s3.C
 	)
 }
 
-func (s *S3ObjectStorage) CompleteMultipartUpload(uuid string, uploadID string, parts []CompletedPart) (*s3.CompleteMultipartUploadOutput, error) {
+func (s *S3ObjectStorage) CompleteMultipartUpload(ctx context.Context, uuid string, uploadID string, parts []CompletedPart) (*s3.CompleteMultipartUploadOutput, error) {
 	objectKey := "files/" + uuid
 
 	var awsCompletedParts []types.CompletedPart
@@ -80,7 +84,7 @@ func (s *S3ObjectStorage) CompleteMultipartUpload(uuid string, uploadID string, 
 	}
 
 	return s.client.CompleteMultipartUpload(
-		context.TODO(),
+		ctx,
 		&s3.CompleteMultipartUploadInput{
 			Bucket:   aws.String(s.bucketName),
 			Key:      aws.String(objectKey),

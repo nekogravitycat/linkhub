@@ -12,7 +12,7 @@ type ErrorResponse struct {
 
 func respondWithError(c *gin.Context, status int, publicMessage string, internalErr error) {
 	if internalErr != nil {
-		log.Printf("%s: %s", publicMessage, internalErr.Error())
+		log.Printf("[REQUEST ERROR] %s: %s", publicMessage, internalErr.Error())
 	}
 	c.JSON(status, ErrorResponse{Message: publicMessage})
 }

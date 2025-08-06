@@ -18,12 +18,18 @@ var (
 	_onceS3Client sync.Once
 )
 
+// Initialize and returns a singleton S3 client.
+// It reads configuration from environment variables and ensures the client is created only once.
 func GetS3Client() *s3.Client {
 	_onceS3Client.Do(func() {
 		// Initialize the S3 client with credentials
 		var baseEndpoint = os.Getenv("S3_BASE_ENDPOINT")
 		var accessKeyId = os.Getenv("S3_ACCESS_KEY_ID")
 		var accessKeySecret = os.Getenv("S3_ACCESS_KEY_SECRET")
+
+		if baseEndpoint == "" || accessKeyId == "" || accessKeySecret == "" {
+			log.Fatal("S3_BASE_ENDPOINT, S3_ACCESS_KEY_ID, and S3_ACCESS_KEY_SECRET environment variables must be set")
+		}
 
 		cfg, err := config.LoadDefaultConfig(
 			context.TODO(),

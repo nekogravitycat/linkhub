@@ -7,6 +7,46 @@ import (
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
 
+func ValidateUpdateEntryRequest(request models.UpdateEntryRequest, now time.Time) error {
+	if request.RawSlug == nil && request.RawPassword == nil && request.ExpiresAt == nil {
+		return fmt.Errorf("at least one field must be provided for update")
+	}
+	if request.RawSlug != nil {
+		if err := ValidateRawSlug(*request.RawSlug); err != nil {
+			return fmt.Errorf("invalid slug: %w", err)
+		}
+	}
+	if request.RawPassword != nil {
+		if err := ValidateRawPassword(*request.RawPassword); err != nil {
+			return fmt.Errorf("invalid password: %w", err)
+		}
+	}
+	if request.ExpiresAt != nil {
+		if err := ValidateExpiresAt(*request.ExpiresAt, now); err != nil {
+			return fmt.Errorf("invalid expiration date: %w", err)
+		}
+	}
+	return nil
+}
+
+func ValidateEntryUpdate(fields models.EntryUpdate) error {
+	if fields.Slug == nil && fields.PasswordHash == nil && fields.ExpiresAt == nil {
+		return fmt.Errorf("at least one field must be provided for update")
+	}
+	if fields.Slug != nil {
+		if err := ValidateSlug(*fields.Slug); err != nil {
+			return fmt.Errorf("invalid slug: %w", err)
+		}
+	}
+	if fields.PasswordHash != nil {
+		if err := ValidatePasswordHash(*fields.PasswordHash); err != nil {
+			return fmt.Errorf("invalid password hash: %w", err)
+		}
+	}
+	// ExpiresAt should be validated in UpdateEntryRequest
+	return nil
+}
+
 func ValidateCreateLinkRequest(request models.CreateLinkRequest, now time.Time) error {
 	if err := ValidateRawSlug(request.RawSlug); err != nil {
 		return fmt.Errorf("invalid slug: %w", err)
@@ -23,6 +63,13 @@ func ValidateCreateLinkRequest(request models.CreateLinkRequest, now time.Time) 
 		if err := ValidateExpiresAt(*request.ExpiresAt, now); err != nil {
 			return fmt.Errorf("invalid expiration date: %w", err)
 		}
+	}
+	return nil
+}
+
+func ValidateUpdateLinkRequest(request models.UpdateLinkRequest) error {
+	if err := ValidateTargetURL(request.TargetURL); err != nil {
+		return fmt.Errorf("invalid target URL: %w", err)
 	}
 	return nil
 }

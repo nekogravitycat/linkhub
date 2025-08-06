@@ -7,6 +7,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/nekogravitycat/linkhub/backend/internal/database"
 	"github.com/nekogravitycat/linkhub/backend/internal/handlers"
+	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
 )
 
 func main() {
@@ -20,6 +21,11 @@ func main() {
 		log.Fatal("Failed to initialize database client")
 	}
 	defer db.Close()
+
+	s3Client := s3bucket.GetS3Client()
+	if s3Client == nil {
+		log.Fatal("Failed to initialize S3 client")
+	}
 
 	router := gin.Default()
 	handlers.RegisterRoutes(router)
