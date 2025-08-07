@@ -5,15 +5,15 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/nekogravitycat/linkhub/backend/internal/config"
 	"github.com/nekogravitycat/linkhub/backend/internal/database"
 	"github.com/nekogravitycat/linkhub/backend/internal/handlers"
+	"github.com/nekogravitycat/linkhub/backend/internal/myconfig"
 	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
 	"github.com/nekogravitycat/linkhub/backend/internal/syncer"
 )
 
 func main() {
-	if err := config.ReadConfigFromEnv(); err != nil {
+	if err := myconfig.ReadConfigFromEnv(); err != nil {
 		log.Fatalf("Error reading configuration: %v", err)
 	}
 

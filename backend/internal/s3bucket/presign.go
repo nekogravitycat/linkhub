@@ -7,7 +7,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/nekogravitycat/linkhub/backend/internal/config"
+	"github.com/nekogravitycat/linkhub/backend/internal/myconfig"
 )
 
 type Presigner struct {
@@ -33,7 +33,7 @@ func (p *Presigner) Head(ctx context.Context, uuid string) (string, error) {
 	output, err := p.client.PresignHeadObject(
 		ctx,
 		&s3.HeadObjectInput{
-			Bucket: aws.String(config.S3_BUCKET_NAME),
+			Bucket: aws.String(myconfig.S3_BUCKET_NAME),
 			Key:    aws.String(key),
 		},
 		func(opts *s3.PresignOptions) {
@@ -56,7 +56,7 @@ func (p *Presigner) Get(ctx context.Context, uuid string) (string, error) {
 	output, err := p.client.PresignGetObject(
 		ctx,
 		&s3.GetObjectInput{
-			Bucket: aws.String(config.S3_BUCKET_NAME),
+			Bucket: aws.String(myconfig.S3_BUCKET_NAME),
 			Key:    aws.String(key),
 		},
 		func(opts *s3.PresignOptions) {
@@ -79,7 +79,7 @@ func (p *Presigner) Put(ctx context.Context, uuid string, mime string) (string, 
 	output, err := p.client.PresignPutObject(
 		ctx,
 		&s3.PutObjectInput{
-			Bucket:      aws.String(config.S3_BUCKET_NAME),
+			Bucket:      aws.String(myconfig.S3_BUCKET_NAME),
 			Key:         aws.String(key),
 			ContentType: aws.String(mime),
 		},
@@ -110,7 +110,7 @@ func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string
 		output, err := p.client.PresignUploadPart(
 			ctx,
 			&s3.UploadPartInput{
-				Bucket:     aws.String(config.S3_BUCKET_NAME),
+				Bucket:     aws.String(myconfig.S3_BUCKET_NAME),
 				Key:        aws.String(key),
 				PartNumber: aws.Int32(idx + 1),
 				UploadId:   aws.String(uploadID),

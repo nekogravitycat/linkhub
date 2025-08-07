@@ -1,4 +1,4 @@
-package config
+package myconfig
 
 import (
 	"errors"
@@ -15,6 +15,8 @@ var (
 	DATABASE_URL         string
 )
 
+// ReadConfigFromEnv reads configuration from environment variables.
+// It returns an error if any required variable is not set or empty.
 func ReadConfigFromEnv() error {
 	if err := godotenv.Load(); err != nil {
 		return err

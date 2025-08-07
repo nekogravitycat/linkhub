@@ -7,8 +7,8 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
-	"github.com/nekogravitycat/linkhub/backend/internal/config"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
+	"github.com/nekogravitycat/linkhub/backend/internal/myconfig"
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
@@ -34,7 +34,7 @@ type S3ObjectStorage struct {
 func NewS3ObjectStorage(client *s3.Client) *S3ObjectStorage {
 	return &S3ObjectStorage{
 		client:     client,
-		bucketName: config.S3_BUCKET_NAME,
+		bucketName: myconfig.S3_BUCKET_NAME,
 	}
 }
 

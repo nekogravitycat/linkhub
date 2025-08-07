@@ -3,13 +3,13 @@ package s3bucket
 import (
 	"context"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/nekogravitycat/linkhub/backend/internal/myconfig"
 )
 
 // singleton S3 client
@@ -22,20 +22,11 @@ var (
 // It reads configuration from environment variables and ensures the client is created only once.
 func GetS3Client() *s3.Client {
 	_onceS3Client.Do(func() {
-		// Initialize the S3 client with credentials
-		var baseEndpoint = os.Getenv("S3_BASE_ENDPOINT")
-		var accessKeyId = os.Getenv("S3_ACCESS_KEY_ID")
-		var accessKeySecret = os.Getenv("S3_ACCESS_KEY_SECRET")
-
-		if baseEndpoint == "" || accessKeyId == "" || accessKeySecret == "" {
-			log.Fatal("S3_BASE_ENDPOINT, S3_ACCESS_KEY_ID, and S3_ACCESS_KEY_SECRET environment variables must be set")
-		}
-
 		cfg, err := config.LoadDefaultConfig(
 			context.TODO(),
 			config.WithRegion("auto"),
 			config.WithCredentialsProvider(
-				credentials.NewStaticCredentialsProvider(accessKeyId, accessKeySecret, ""),
+				credentials.NewStaticCredentialsProvider(myconfig.S3_ACCESS_KEY_ID, myconfig.S3_ACCESS_KEY_SECRET, ""),
 			),
 		)
 		if err != nil {
@@ -43,7 +34,7 @@ func GetS3Client() *s3.Client {
 		}
 
 		_s3Client = s3.NewFromConfig(cfg, func(o *s3.Options) {
-			o.BaseEndpoint = aws.String(baseEndpoint)
+			o.BaseEndpoint = aws.String(myconfig.S3_BASE_ENDPOINT)
 		})
 
 		if _s3Client == nil {
