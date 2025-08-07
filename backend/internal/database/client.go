@@ -7,7 +7,7 @@ import (
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/nekogravitycat/linkhub/backend/internal/config"
+	"github.com/nekogravitycat/linkhub/backend/internal/myconfig"
 )
 
 var ErrDuplicateSlug = errors.New("duplicate slug")
@@ -23,7 +23,7 @@ var (
 func GetDBClient() *pgxpool.Pool {
 	_onceDBClient.Do(func() {
 		var err error
-		_dbClient, err = pgxpool.New(context.Background(), config.DATABASE_URL)
+		_dbClient, err = pgxpool.New(context.Background(), myconfig.DATABASE_URL)
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}
