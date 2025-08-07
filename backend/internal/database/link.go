@@ -31,6 +31,8 @@ func getLink(ctx context.Context, entryID int64) (models.Link, error) {
 	return link, nil
 }
 
+// UpdateLink updates the target URL of an existing link.
+// Validates the link before updating.
 func UpdateLink(ctx context.Context, link models.Link) error {
 	if err := validator.ValidateLink(link); err != nil {
 		return fmt.Errorf("failed to validate link: %w", err)

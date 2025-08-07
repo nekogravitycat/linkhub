@@ -11,6 +11,8 @@ import (
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
+// Get an entry by its slug. Will validate the slug format before querying.
+// Returns ErrEntryNotFound if no entry exists with the given slug.
 func getEntry(ctx context.Context, slug string) (models.Entry, error) {
 	if err := validator.ValidateSlug(slug); err != nil {
 		return models.Entry{}, err
@@ -46,6 +48,7 @@ func getEntry(ctx context.Context, slug string) (models.Entry, error) {
 
 // Update slug, password_hash, and expires_at of an entry.
 // If updatePassword is false, it uses the existing password hash.
+// Validates the fields before updating.
 func UpdateEntry(ctx context.Context, oldSlug string, fields models.EntryUpdate) error {
 	if err := validator.ValidateEntryUpdate(fields); err != nil {
 		return fmt.Errorf("failed to validate entry update: %w", err)

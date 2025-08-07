@@ -136,7 +136,7 @@ func toEntryUpdate(request models.UpdateEntryRequest) models.EntryUpdate {
 		fields.PasswordHash = &hash
 	}
 	fields.ExpiresAt = request.ExpiresAt
-	fields.UpdatePassword = request.UpdatePassword
+	fields.UpdatePassword = *request.UpdatePassword
 
 	return fields
 }

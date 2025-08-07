@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
@@ -119,7 +118,7 @@ func ListResources(ctx context.Context, offset int, limit int) ([]models.Resourc
 }
 
 // InsertResource validates and inserts the given resource into the database.
-// Entry ID and File.Pending will be omitted from the resource.
+// EntryID and File.Pending will be omitted from the resource.
 // Returns the entry ID of the inserted resource and an error if any.
 // If the insertion fails, the returned entry ID will be -1.
 func InsertResource(ctx context.Context, resource models.Resource) (int64, error) {
@@ -130,6 +129,7 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 	var entryID int64 = -1
 	db := GetDBClient()
 
+	// Start a transaction to ensure atomicity
 	err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
 		const insertEntryQuery = `
 			INSERT INTO entries (slug, type, password_hash, expires_at)
@@ -189,127 +189,6 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 	}
 
 	return entryID, nil
-}
-
-// UpdateResource validates and updates an existing resource in the database.
-// - The entry type and created_at fields must not be changed.
-// - If updatePassword is false, the existing password_hash will be preserved.
-// - For link resources, only the target_url can be updated.
-// - For file resources, the file content must remain the same.
-// Returns an error if any validation or database operation fails.
-func UpdateResource(ctx context.Context, resource models.Resource, updatePassword bool) error {
-	if err := validator.ValidateResource(resource); err != nil {
-		return fmt.Errorf("invalid resource: %w", err)
-	}
-
-	db := GetDBClient()
-
-	err := pgx.BeginFunc(ctx, db, func(tx pgx.Tx) error {
-		// Check if the existing entry type matches the resource type.
-		var dbType string
-		var dbPasswordHash *string
-		var dbCreatedAt time.Time
-
-		const selectEntryQuery = `
-			SELECT type, created_at, password_hash
-			FROM entries
-			WHERE id = $1
-		`
-		if err := tx.QueryRow(ctx, selectEntryQuery, resource.Entry.ID).Scan(
-			&dbType,
-			&dbCreatedAt,
-			&dbPasswordHash,
-		); err != nil {
-			return fmt.Errorf("failed to get entry type: %w", err)
-		}
-
-		// Check if the resource type matches.
-		if models.ResourceType(dbType) != resource.Entry.Type {
-			return fmt.Errorf("type cannot be updated")
-		}
-
-		// Check if the created_at timestamp matches.
-		if !dbCreatedAt.UTC().Truncate(time.Second).Equal(resource.Entry.CreatedAt.UTC().Truncate(time.Second)) {
-			return fmt.Errorf("created_at cannot be updated")
-		}
-
-		// Use the existing password hash if not updating.
-		if !updatePassword {
-			resource.Entry.PasswordHash = dbPasswordHash
-		}
-
-		// Update the entry.
-		const updateEntryQuery = `
-			UPDATE entries
-			SET slug = $1, password_hash = $2, expires_at = $3
-			WHERE id = $4
-		`
-		tag, err := tx.Exec(ctx, updateEntryQuery,
-			resource.Entry.Slug,
-			resource.Entry.PasswordHash,
-			resource.Entry.ExpiresAt,
-			resource.Entry.ID,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to update entry: %w", err)
-		}
-		if tag.RowsAffected() != 1 {
-			return fmt.Errorf("entry update affected %d rows, expected 1", tag.RowsAffected())
-		}
-
-		switch resource.Entry.Type {
-		case models.ResourceTypeLink:
-			// If the resource is a link, update the link details.
-			const updateLinkQuery = `
-				UPDATE links
-				SET target_url = $1
-				WHERE entry_id = $2
-			`
-			tag, err := tx.Exec(ctx, updateLinkQuery, resource.Link.TargetURL, resource.Entry.ID)
-			if err != nil {
-				return fmt.Errorf("failed to update link: %w", err)
-			}
-			if tag.RowsAffected() != 1 {
-				return fmt.Errorf("link update affected %d rows, expected 1", tag.RowsAffected())
-			}
-
-		case models.ResourceTypeFile:
-			// Check if File is unchanged for file resources.
-			var fileUUID, filename, mimeType string
-			var size int64
-
-			const selectFileQuery = `
-				SELECT file_uuid, filename, mime_type, size
-				FROM files
-				WHERE entry_id = $1
-			`
-			if err := tx.QueryRow(ctx, selectFileQuery, resource.Entry.ID).Scan(
-				&fileUUID,
-				&filename,
-				&mimeType,
-				&size,
-			); err != nil {
-				return fmt.Errorf("failed to get file info: %w", err)
-			}
-
-			if fileUUID != resource.File.FileUUID ||
-				filename != resource.File.Filename ||
-				mimeType != resource.File.MIMEType ||
-				size != resource.File.Size {
-				return fmt.Errorf("file content changes are not supported")
-			}
-		default:
-			return fmt.Errorf("unknown resource type: %s", resource.Entry.Type)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("update resource transaction failed: %w", err)
-	}
-
-	return nil
 }
 
 func DeleteResourceBySlug(ctx context.Context, slug string) error {

@@ -8,7 +8,10 @@ import (
 )
 
 func ValidateUpdateEntryRequest(request models.UpdateEntryRequest, now time.Time) error {
-	if request.RawSlug == nil && request.RawPassword == nil && request.ExpiresAt == nil {
+	if request.UpdatePassword == nil {
+		return fmt.Errorf("update_password field is required")
+	}
+	if request.RawSlug == nil && request.RawPassword == nil && request.ExpiresAt == nil && !*request.UpdatePassword {
 		return fmt.Errorf("at least one field must be provided for update")
 	}
 	if request.RawSlug != nil {
@@ -30,7 +33,7 @@ func ValidateUpdateEntryRequest(request models.UpdateEntryRequest, now time.Time
 }
 
 func ValidateEntryUpdate(fields models.EntryUpdate) error {
-	if fields.Slug == nil && fields.PasswordHash == nil && fields.ExpiresAt == nil {
+	if fields.Slug == nil && fields.PasswordHash == nil && fields.ExpiresAt == nil && !fields.UpdatePassword {
 		return fmt.Errorf("at least one field must be provided for update")
 	}
 	if fields.Slug != nil {

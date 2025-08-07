@@ -34,7 +34,7 @@ type UpdateEntryRequest struct {
 	RawSlug        *string    `json:"slug,omitempty"`                     // Optional unescaped slug identifier (must be unique)
 	RawPassword    *string    `json:"password,omitempty"`                 // Optional plain-text password to protect access
 	ExpiresAt      *time.Time `json:"expires_at,omitempty"`               // Optional expiration time
-	UpdatePassword bool       `json:"update_password" binding:"required"` // Whether to update the password hash
+	UpdatePassword *bool      `json:"update_password" binding:"required"` // Whether to update the password hash
 }
 
 // CreateLinkRequest defines the request payload for creating a new link resource.
