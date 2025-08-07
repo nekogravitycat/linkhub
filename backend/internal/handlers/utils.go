@@ -55,39 +55,47 @@ func populateDownloadURL(ctx context.Context, resp *models.GetResourceResponse, 
 // It selects single or multipart upload, initializes the upload session if needed,
 // and returns the appropriate pre-signed URL(s) for uploading to S3.
 func GenerateUploadResponse(ctx context.Context, request models.CreateFileRequest, fileUUID string) (models.UploadFileResponse, error) {
-	resp := models.UploadFileResponse{
-		FileUUID: fileUUID,
-	}
+	resp := models.UploadFileResponse{FileUUID: fileUUID}
 	// Create the S3 client and presigner
 	s3Client := s3bucket.GetS3Client()
 	presigner := s3bucket.NewPresigner(s3Client, 30*time.Minute)
+
 	// Decide upload type based on the request size
 	const partSize = 50 * 1024 * 1024 // 50MB
+
 	if request.Size <= partSize {
 		// Single file upload
-		resp.Upload.Type = models.UploadTypeSingle
+		resp.Type = models.UploadTypeSingle
+
 		// Generate a pre-signed URL for the single upload
 		uploadURL, err := presigner.Put(ctx, fileUUID, request.MIMEType)
 		if err != nil {
 			return models.UploadFileResponse{}, fmt.Errorf("failed to get upload URL: %w", err)
 		}
-		resp.Upload.UploadURL = &uploadURL
+
+		// Add the single upload config to the response
+		resp.Single = &models.SingleUploadConfig{
+			UploadURL: uploadURL,
+		}
+
 	} else {
 		// Multipart upload, 50MB per part
-		resp.Upload.Type = models.UploadTypeMultipart
+		resp.Type = models.UploadTypeMultipart
+
 		// Create multipart upload session
 		objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
 		createResp, err := objectStorage.CreateMultipartUpload(ctx, fileUUID, request.MIMEType)
 		if err != nil || createResp.UploadId == nil {
 			return models.UploadFileResponse{}, fmt.Errorf("failed to create multipart upload: %w", err)
 		}
-		resp.Upload.UploadID = createResp.UploadId
+
 		// Generate presigned URLs for each part
 		numParts := int((request.Size + partSize - 1) / partSize) // Round up to nearest part size
-		partURLs, err := presigner.UploadPart(ctx, fileUUID, *resp.Upload.UploadID, numParts)
+		partURLs, err := presigner.UploadPart(ctx, fileUUID, *createResp.UploadId, numParts)
 		if err != nil {
 			return models.UploadFileResponse{}, fmt.Errorf("failed to generate multipart upload URLs: %w", err)
 		}
+
 		// Build multipart upload response
 		parts := []models.MultipartPart{}
 		for i, url := range partURLs {
@@ -96,7 +104,12 @@ func GenerateUploadResponse(ctx context.Context, request models.CreateFileReques
 				UploadURL:  url,
 			})
 		}
-		resp.Upload.Parts = parts
+
+		// Add multipart upload config to the response
+		resp.Multipart = &models.MultipartUploadConfig{
+			UploadID: *createResp.UploadId,
+			Parts:    parts,
+		}
 	}
 	return resp, nil
 }
