@@ -93,11 +93,17 @@ func ListResources(ctx context.Context, offset int, limit int) ([]models.Resourc
 		// Attach link or file depending on the type
 		switch entry.Type {
 		case models.ResourceTypeLink:
+			if linkTargetURL == nil {
+				return nil, fmt.Errorf("link resource with ID %d has no target URL", entry.ID)
+			}
 			resource.Link = &models.Link{
 				EntryID:   entry.ID,
 				TargetURL: *linkTargetURL,
 			}
 		case models.ResourceTypeFile:
+			if fileFileUUID == nil || fileFilename == nil || fileMIMEType == nil || fileSize == nil || filePending == nil {
+				return nil, fmt.Errorf("file resource with ID %d is missing required fields", entry.ID)
+			}
 			resource.File = &models.File{
 				EntryID:  entry.ID,
 				FileUUID: *fileFileUUID,
@@ -106,6 +112,8 @@ func ListResources(ctx context.Context, offset int, limit int) ([]models.Resourc
 				Size:     *fileSize,
 				Pending:  *filePending,
 			}
+		default:
+			return nil, fmt.Errorf("unknown resource type %s for entry ID %d", entry.Type, entry.ID)
 		}
 		resources = append(resources, resource)
 	}

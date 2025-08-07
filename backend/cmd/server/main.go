@@ -5,7 +5,7 @@ import (
 	"log"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"github.com/nekogravitycat/linkhub/backend/internal/config"
 	"github.com/nekogravitycat/linkhub/backend/internal/database"
 	"github.com/nekogravitycat/linkhub/backend/internal/handlers"
 	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
@@ -13,9 +13,8 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
+	if err := config.ReadConfigFromEnv(); err != nil {
+		log.Fatalf("Error reading configuration: %v", err)
 	}
 
 	db := database.GetDBClient()

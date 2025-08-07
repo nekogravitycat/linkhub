@@ -98,7 +98,7 @@ func UpdateEntry(ctx context.Context, oldSlug string, fields models.EntryUpdate)
 		return fmt.Errorf("failed to update entry: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("no entry was updated (slug: %s)", oldSlug)
+		return ErrRowNotFound
 	}
 
 	return nil
@@ -120,14 +120,11 @@ func deleteEntry(ctx context.Context, id int64) error {
 
 	cmdTag, err := db.Exec(ctx, query, id)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrRowNotFound
-		}
 		return fmt.Errorf("failed to delete entry: %w", err)
 	}
 
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("entry with id %d not found", id)
+		return ErrRowNotFound
 	}
 
 	return nil

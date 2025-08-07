@@ -27,6 +27,9 @@ func getLink(ctx context.Context, entryID int64) (models.Link, error) {
 
 	row := db.QueryRow(ctx, query, entryID)
 	if err := row.Scan(&link.EntryID, &link.TargetURL); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.Link{}, ErrRowNotFound
+		}
 		return models.Link{}, fmt.Errorf("failed to scan link: %w", err)
 	}
 
@@ -49,13 +52,10 @@ func UpdateLink(ctx context.Context, link models.Link) error {
 	`
 	cmdTag, err := db.Exec(ctx, query, link.EntryID, link.TargetURL)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrRowNotFound
-		}
 		return fmt.Errorf("failed to update link: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("no link was updated (entry_id: %d)", link.EntryID)
+		return ErrRowNotFound
 	}
 
 	return nil

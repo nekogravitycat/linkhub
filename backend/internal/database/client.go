@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"log"
-	"os"
 	"sync"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/nekogravitycat/linkhub/backend/internal/config"
 )
 
 var ErrDuplicateSlug = errors.New("duplicate slug")
@@ -22,13 +22,8 @@ var (
 // It reads the database connection string from environment variable and ensures the client is created only once.
 func GetDBClient() *pgxpool.Pool {
 	_onceDBClient.Do(func() {
-		dsn, ok := os.LookupEnv("DATABASE_URL")
-		if !ok || dsn == "" {
-			log.Fatal("DATABASE_URL environment variable is not set")
-		}
-
 		var err error
-		_dbClient, err = pgxpool.New(context.Background(), dsn)
+		_dbClient, err = pgxpool.New(context.Background(), config.DATABASE_URL)
 		if err != nil {
 			log.Fatalf("Failed to connect to database: %v", err)
 		}

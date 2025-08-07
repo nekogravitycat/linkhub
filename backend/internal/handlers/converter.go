@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
-	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
 // If the resource is a file, DownloadURL will be empty and need to populate.
@@ -62,9 +61,6 @@ func toResourceFromLink(request models.CreateLinkRequest) (models.Resource, erro
 
 	var passwordHash *string = nil
 	if request.RawPassword != nil {
-		if validator.ValidateRawPassword(*request.RawPassword) != nil {
-			return models.Resource{}, fmt.Errorf("invalid password format")
-		}
 		hash, err := getPasswordHash(*request.RawPassword)
 		if err != nil {
 			return models.Resource{}, fmt.Errorf("failed to hash password: %w", err)

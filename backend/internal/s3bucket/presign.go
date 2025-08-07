@@ -3,12 +3,11 @@ package s3bucket
 import (
 	"context"
 	"fmt"
-	"log"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/nekogravitycat/linkhub/backend/internal/config"
 )
 
 type Presigner struct {
@@ -24,24 +23,17 @@ func NewPresigner(s3Client *s3.Client, urlLifetime time.Duration) *Presigner {
 	}
 }
 
-// getBucketAndKey returns the bucket name and object key
-func getBucketAndKey(uuid string) (string, string) {
-	bucket, ok := os.LookupEnv("S3_BUCKET_NAME")
-	if !ok || bucket == "" {
-		log.Fatal("S3_BUCKET_NAME environment variable is not set")
-	}
-	key := fmt.Sprintf("files/%s", uuid)
-	return bucket, key
-}
-
 // Head generates a HEAD presign URL
 func (p *Presigner) Head(ctx context.Context, uuid string) (string, error) {
-	bucket, key := getBucketAndKey(uuid)
+	key, err := getObjectKey(uuid)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	output, err := p.client.PresignHeadObject(
 		ctx,
 		&s3.HeadObjectInput{
-			Bucket: aws.String(bucket),
+			Bucket: aws.String(config.S3_BUCKET_NAME),
 			Key:    aws.String(key),
 		},
 		func(opts *s3.PresignOptions) {
@@ -56,12 +48,15 @@ func (p *Presigner) Head(ctx context.Context, uuid string) (string, error) {
 
 // Get generates a GET presign URL
 func (p *Presigner) Get(ctx context.Context, uuid string) (string, error) {
-	bucket, key := getBucketAndKey(uuid)
+	key, err := getObjectKey(uuid)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	output, err := p.client.PresignGetObject(
 		ctx,
 		&s3.GetObjectInput{
-			Bucket: aws.String(bucket),
+			Bucket: aws.String(config.S3_BUCKET_NAME),
 			Key:    aws.String(key),
 		},
 		func(opts *s3.PresignOptions) {
@@ -76,12 +71,15 @@ func (p *Presigner) Get(ctx context.Context, uuid string) (string, error) {
 
 // Put generates a PUT presign URL
 func (p *Presigner) Put(ctx context.Context, uuid string, mime string) (string, error) {
-	bucket, key := getBucketAndKey(uuid)
+	key, err := getObjectKey(uuid)
+	if err != nil {
+		return "", fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	output, err := p.client.PresignPutObject(
 		ctx,
 		&s3.PutObjectInput{
-			Bucket:      aws.String(bucket),
+			Bucket:      aws.String(config.S3_BUCKET_NAME),
 			Key:         aws.String(key),
 			ContentType: aws.String(mime),
 		},
@@ -101,14 +99,18 @@ func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string
 		return nil, fmt.Errorf("number of parts must be at least 2")
 	}
 
-	bucket, key := getBucketAndKey(uuid)
+	key, err := getObjectKey(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object key: %w", err)
+	}
+
 	urls := make([]string, 0, parts)
 
 	for idx := range parts {
 		output, err := p.client.PresignUploadPart(
 			ctx,
 			&s3.UploadPartInput{
-				Bucket:     aws.String(bucket),
+				Bucket:     aws.String(config.S3_BUCKET_NAME),
 				Key:        aws.String(key),
 				PartNumber: aws.Int32(idx + 1),
 				UploadId:   aws.String(uploadID),

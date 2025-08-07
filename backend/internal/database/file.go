@@ -33,6 +33,9 @@ func getFile(ctx context.Context, entryID int64) (models.File, error) {
 		&file.Size,
 		&file.Pending,
 	); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return models.File{}, ErrRowNotFound
+		}
 		return models.File{}, fmt.Errorf("failed to scan file: %w", err)
 	}
 
@@ -53,13 +56,10 @@ func MarkFileAsUploaded(ctx context.Context, entryID int64) error {
 	`
 	cmdTag, err := db.Exec(ctx, query, entryID)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrRowNotFound
-		}
 		return fmt.Errorf("failed to mark file as uploaded: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {
-		return fmt.Errorf("no file found for entry ID %d", entryID)
+		return ErrRowNotFound
 	}
 
 	return nil

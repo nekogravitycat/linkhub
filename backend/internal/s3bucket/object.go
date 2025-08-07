@@ -2,13 +2,14 @@ package s3bucket
 
 import (
 	"context"
-	"log"
-	"os"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/nekogravitycat/linkhub/backend/internal/config"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
+	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
 
 func toAWSCompletedPart(part models.MultipartCompletePart) types.CompletedPart {
@@ -18,24 +19,30 @@ func toAWSCompletedPart(part models.MultipartCompletePart) types.CompletedPart {
 	}
 }
 
+func getObjectKey(uuid string) (string, error) {
+	if err := validator.ValidateUUID(uuid); err != nil {
+		return "", fmt.Errorf("invalid UUID: %w", err)
+	}
+	return "files/" + uuid, nil
+}
+
 type S3ObjectStorage struct {
 	client     *s3.Client
 	bucketName string
 }
 
 func NewS3ObjectStorage(client *s3.Client) *S3ObjectStorage {
-	bucket, ok := os.LookupEnv("S3_BUCKET_NAME")
-	if !ok || bucket == "" {
-		log.Fatal("S3_BUCKET_NAME environment variable is not set")
-	}
 	return &S3ObjectStorage{
 		client:     client,
-		bucketName: bucket,
+		bucketName: config.S3_BUCKET_NAME,
 	}
 }
 
 func (s *S3ObjectStorage) HeadObject(ctx context.Context, uuid string) (*s3.HeadObjectOutput, error) {
-	objectKey := "files/" + uuid
+	objectKey, err := getObjectKey(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	return s.client.HeadObject(
 		ctx,
@@ -47,7 +54,10 @@ func (s *S3ObjectStorage) HeadObject(ctx context.Context, uuid string) (*s3.Head
 }
 
 func (s *S3ObjectStorage) DeleteObject(ctx context.Context, uuid string) (*s3.DeleteObjectOutput, error) {
-	objectKey := "files/" + uuid
+	objectKey, err := getObjectKey(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	return s.client.DeleteObject(
 		ctx,
@@ -59,7 +69,10 @@ func (s *S3ObjectStorage) DeleteObject(ctx context.Context, uuid string) (*s3.De
 }
 
 func (s *S3ObjectStorage) CreateMultipartUpload(ctx context.Context, uuid string, mime string) (*s3.CreateMultipartUploadOutput, error) {
-	objectKey := "files/" + uuid
+	objectKey, err := getObjectKey(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	return s.client.CreateMultipartUpload(
 		ctx,
@@ -72,7 +85,10 @@ func (s *S3ObjectStorage) CreateMultipartUpload(ctx context.Context, uuid string
 }
 
 func (s *S3ObjectStorage) CompleteMultipartUpload(ctx context.Context, uuid string, info models.MultipartCompleteInfo) (*s3.CompleteMultipartUploadOutput, error) {
-	objectKey := "files/" + uuid
+	objectKey, err := getObjectKey(uuid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get object key: %w", err)
+	}
 
 	var awsCompletedParts []types.CompletedPart
 	for _, p := range info.Parts {
