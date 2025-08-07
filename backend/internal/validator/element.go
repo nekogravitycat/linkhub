@@ -42,6 +42,7 @@ func ValidateSlug(slug string) error {
 	return nil
 }
 
+// Validate if resource type is either "link" or "file".
 func ValidateType(resourceType models.ResourceType) error {
 	if resourceType != models.ResourceTypeLink && resourceType != models.ResourceTypeFile {
 		return fmt.Errorf("invalid resource type: %s", resourceType)
@@ -92,6 +93,19 @@ func ValidateUUID(u string) error {
 	}
 	if parsed.Version() != 4 {
 		return fmt.Errorf("UUID must be version 4")
+	}
+	return nil
+}
+
+// Validate if upload_id is 1 to 1024 characters long.
+// It must contain only alphanumeric characters, hyphens, and underscores.
+func ValidateUploadID(uploadID string) error {
+	if len(uploadID) < 1 || len(uploadID) > 1024 {
+		return fmt.Errorf("upload_id must be between 1 and 1024 characters long")
+	}
+	var format = regexp.MustCompile(`^[A-Za-z0-9_-]$`)
+	if !format.MatchString(uploadID) {
+		return fmt.Errorf("upload_id can only contain alphanumeric characters, hyphens, and underscores")
 	}
 	return nil
 }
@@ -151,6 +165,31 @@ func ValidateSize(size int64) error {
 func ValidateExpiresAt(expiresAt time.Time, now time.Time) error {
 	if expiresAt.UTC().Before(now.UTC()) {
 		return fmt.Errorf("expires_at must be in the future")
+	}
+	return nil
+}
+
+// Validate if upload_type is either "single" or "multipart".
+func ValidateUploadType(uploadType models.UploadType) error {
+	if uploadType != models.UploadTypeSingle && uploadType != models.UploadTypeMultipart {
+		return fmt.Errorf("invalid upload type: %s", uploadType)
+	}
+	return nil
+}
+
+// Validate if part_number is between 1 and 10000.
+func ValidatePartNumber(partNumber int32) error {
+	if partNumber < 1 || partNumber > 10000 {
+		return fmt.Errorf("part number must be between 1 and 10000")
+	}
+	return nil
+}
+
+// Validate if ETag is a valid single file ETag format (with double quotes).
+func ValidateSingleFileETag(eTag string) error {
+	singleETagRe := regexp.MustCompile(`^"[a-fA-F0-9]{32}"$`)
+	if !singleETagRe.MatchString(eTag) {
+		return fmt.Errorf("ETag must be a valid single file ETag format (with double quotes)")
 	}
 	return nil
 }

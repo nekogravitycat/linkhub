@@ -2,8 +2,10 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/validator"
 )
@@ -47,6 +49,9 @@ func UpdateLink(ctx context.Context, link models.Link) error {
 	`
 	cmdTag, err := db.Exec(ctx, query, link.EntryID, link.TargetURL)
 	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRowNotFound
+		}
 		return fmt.Errorf("failed to update link: %w", err)
 	}
 	if cmdTag.RowsAffected() == 0 {

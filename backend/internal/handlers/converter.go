@@ -65,7 +65,7 @@ func toResourceFromLink(request models.CreateLinkRequest) (models.Resource, erro
 		if validator.ValidateRawPassword(*request.RawPassword) != nil {
 			return models.Resource{}, fmt.Errorf("invalid password format")
 		}
-		hash, err := calculatePasswordHash(*request.RawPassword)
+		hash, err := getPasswordHash(*request.RawPassword)
 		if err != nil {
 			return models.Resource{}, fmt.Errorf("failed to hash password: %w", err)
 		}
@@ -97,7 +97,7 @@ func toResourceFromFile(request models.CreateFileRequest, uuid string) (models.R
 
 	var passwordHash *string = nil
 	if request.RawPassword != nil {
-		hash, err := calculatePasswordHash(*request.RawPassword)
+		hash, err := getPasswordHash(*request.RawPassword)
 		if err != nil {
 			return models.Resource{}, fmt.Errorf("failed to hash password: %w", err)
 		}
@@ -132,7 +132,7 @@ func toEntryUpdate(request models.UpdateEntryRequest) models.EntryUpdate {
 		fields.Slug = &slug
 	}
 	if request.RawPassword != nil {
-		hash, _ := calculatePasswordHash(*request.RawPassword)
+		hash, _ := getPasswordHash(*request.RawPassword)
 		fields.PasswordHash = &hash
 	}
 	fields.ExpiresAt = request.ExpiresAt

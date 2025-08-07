@@ -11,7 +11,7 @@ import (
 )
 
 var ErrDuplicateSlug = errors.New("duplicate slug")
-var ErrEntryNotFound = errors.New("entry not found")
+var ErrRowNotFound = errors.New("entry not found")
 
 var (
 	_dbClient     *pgxpool.Pool

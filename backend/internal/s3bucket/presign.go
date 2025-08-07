@@ -96,7 +96,7 @@ func (p *Presigner) Put(ctx context.Context, uuid string, mime string) (string, 
 }
 
 // UploadPart generates presign URLs for each part of multipart upload
-func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string, parts int) ([]string, error) {
+func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string, parts int32) ([]string, error) {
 	if parts < 2 {
 		return nil, fmt.Errorf("number of parts must be at least 2")
 	}
@@ -110,7 +110,7 @@ func (p *Presigner) UploadPart(ctx context.Context, uuid string, uploadID string
 			&s3.UploadPartInput{
 				Bucket:     aws.String(bucket),
 				Key:        aws.String(key),
-				PartNumber: aws.Int32(int32(idx + 1)),
+				PartNumber: aws.Int32(idx + 1),
 				UploadId:   aws.String(uploadID),
 			},
 			func(opts *s3.PresignOptions) {

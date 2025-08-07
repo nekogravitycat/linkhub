@@ -16,8 +16,8 @@ import (
 func GetResource(ctx context.Context, slug string) (models.Resource, error) {
 	entry, err := getEntry(ctx, slug)
 	if err != nil {
-		if errors.Is(err, ErrEntryNotFound) {
-			return models.Resource{}, ErrEntryNotFound
+		if errors.Is(err, ErrRowNotFound) {
+			return models.Resource{}, ErrRowNotFound
 		}
 		return models.Resource{}, fmt.Errorf("failed to get entry: %w", err)
 	}
@@ -194,8 +194,8 @@ func InsertResource(ctx context.Context, resource models.Resource) (int64, error
 func DeleteResourceBySlug(ctx context.Context, slug string) error {
 	entry, err := getEntry(ctx, slug)
 	if err != nil {
-		if errors.Is(err, ErrEntryNotFound) {
-			return ErrEntryNotFound
+		if errors.Is(err, ErrRowNotFound) {
+			return ErrRowNotFound
 		}
 		return fmt.Errorf("failed to find entry: %w", err)
 	}
@@ -211,8 +211,8 @@ func DeleteResourceBySlug(ctx context.Context, slug string) error {
 func DeleteResourceByID(ctx context.Context, entryID int64) error {
 	err := deleteEntry(ctx, entryID)
 	if err != nil {
-		if errors.Is(err, ErrEntryNotFound) {
-			return ErrEntryNotFound
+		if errors.Is(err, ErrRowNotFound) {
+			return ErrRowNotFound
 		}
 		return fmt.Errorf("failed to delete entry: %w", err)
 	}

@@ -52,7 +52,7 @@ func getResource(c *gin.Context) {
 	// Fetch the resource from the database
 	resource, err := database.GetResource(c.Request.Context(), slug)
 	if err != nil {
-		if errors.Is(err, database.ErrEntryNotFound) {
+		if errors.Is(err, database.ErrRowNotFound) {
 			respondWithError(c, http.StatusNotFound, "Resource not found", nil)
 			return
 		}
@@ -180,9 +180,8 @@ func deleteResource(c *gin.Context) {
 		return
 	}
 	// Delete the resource from the database
-	err := database.DeleteResourceBySlug(c.Request.Context(), slug)
-	if err != nil {
-		if errors.Is(err, database.ErrEntryNotFound) {
+	if err := database.DeleteResourceBySlug(c.Request.Context(), slug); err != nil {
+		if errors.Is(err, database.ErrRowNotFound) {
 			respondWithError(c, http.StatusNotFound, "Resource not found", nil)
 			return
 		}
@@ -215,9 +214,8 @@ func updateEntryMeta(c *gin.Context) {
 	// Build the entry update fields from the request
 	entryUpdate := toEntryUpdate(request)
 	// Update the entry in the database
-	err := database.UpdateEntry(c.Request.Context(), slug, entryUpdate)
-	if err != nil {
-		if errors.Is(err, database.ErrEntryNotFound) {
+	if err := database.UpdateEntry(c.Request.Context(), slug, entryUpdate); err != nil {
+		if errors.Is(err, database.ErrRowNotFound) {
 			respondWithError(c, http.StatusNotFound, "Entry not found", nil)
 			return
 		}
@@ -240,7 +238,6 @@ func createLinkResource(c *gin.Context) {
 		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
 		return
 	}
-	log.Printf("Creating link resource: %+v", request)
 	// Validate the request parameters
 	if err := validator.ValidateCreateLinkRequest(request, time.Now()); err != nil {
 		respondWithError(c, http.StatusBadRequest, "Invalid request parameters", err)
@@ -253,8 +250,7 @@ func createLinkResource(c *gin.Context) {
 		return
 	}
 	// Insert the resource into the database
-	_, err = database.InsertResource(c.Request.Context(), resource)
-	if err != nil {
+	if _, err := database.InsertResource(c.Request.Context(), resource); err != nil {
 		if errors.Is(err, database.ErrDuplicateSlug) {
 			respondWithError(c, http.StatusConflict, "Resource with this slug already exists", nil)
 			return
@@ -289,7 +285,11 @@ func updateLinkTargetURL(c *gin.Context) {
 	// Check if the resource exists and is link type
 	resource, err := database.GetResource(c.Request.Context(), slug)
 	if err != nil {
-		respondWithError(c, http.StatusNotFound, "Resource not found", err)
+		if errors.Is(err, database.ErrRowNotFound) {
+			respondWithError(c, http.StatusNotFound, "Resource not found", err)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to get resource", err)
 		return
 	}
 	if resource.Entry.Type != models.ResourceTypeLink {
@@ -302,9 +302,8 @@ func updateLinkTargetURL(c *gin.Context) {
 		TargetURL: request.TargetURL,
 	}
 	// Update the link in the database
-	err = database.UpdateLink(c.Request.Context(), link)
-	if err != nil {
-		if errors.Is(err, database.ErrEntryNotFound) {
+	if err := database.UpdateLink(c.Request.Context(), link); err != nil {
+		if errors.Is(err, database.ErrRowNotFound) {
 			respondWithError(c, http.StatusInternalServerError, "Resource exists but link not found", err)
 			return
 		}
@@ -350,12 +349,11 @@ func createFileResource(c *gin.Context) {
 		return
 	}
 	// Generate the upload response
-	resp, err := GenerateUploadResponse(c.Request.Context(), request, fileUUID)
+	resp, err := generateUploadResponse(c.Request.Context(), request, fileUUID)
 	if err != nil {
 		respondWithError(c, http.StatusInternalServerError, "Failed to generate upload response", err)
 		// Clean up the resource if upload fails
-		err := database.DeleteResourceByID(c.Request.Context(), entryID)
-		if err != nil {
+		if err := database.DeleteResourceByID(c.Request.Context(), entryID); err != nil {
 			log.Printf("[ERROR] Failed to clean up file resource (%d) after generate upload response failure: %v", entryID, err)
 		}
 		return
@@ -366,6 +364,63 @@ func createFileResource(c *gin.Context) {
 
 // PATCH /private/files/:slug/mark-uploaded
 func markFileResourceUploaded(c *gin.Context) {
-	// Handler logic for marking a file resource as uploaded
-	c.JSON(http.StatusOK, gin.H{"message": "File resource marked as uploaded"})
+	slug := c.Param("slug")
+	slug = url.PathEscape(slug)
+	// Validate slug format
+	if err := validator.ValidateSlug(slug); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid slug", err)
+		return
+	}
+	// Build the request from the body
+	var request models.UploadFileCompleteRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Malformed request body", err)
+		return
+	}
+	// Validate the request parameters
+	if err := validator.ValidateUploadFileCompleteRequest(request); err != nil {
+		respondWithError(c, http.StatusBadRequest, "Invalid request parameters", err)
+		return
+	}
+	// Check if the resource exists and is file type
+	resource, err := database.GetResource(c.Request.Context(), slug)
+	if err != nil {
+		if errors.Is(err, database.ErrRowNotFound) {
+			respondWithError(c, http.StatusNotFound, "Resource not found", err)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to get resource", err)
+		return
+	}
+	if resource.Entry.Type != models.ResourceTypeFile {
+		respondWithError(c, http.StatusBadRequest, "Resource is not a file", nil)
+		return
+	}
+	if resource.File == nil {
+		respondWithError(c, http.StatusInternalServerError, "File entry exists but file is missing", nil)
+		return
+	}
+	// If the file is already marked as uploaded, return a conflict error
+	if !resource.File.Pending {
+		respondWithError(c, http.StatusConflict, "File is already marked as uploaded", nil)
+		return
+	}
+	// If the request is multipart upload, complete the multipart upload
+	if request.Type == models.UploadTypeMultipart {
+		if err := completeMultipartUpload(c.Request.Context(), request.FileUUID, *request.Multipart); err != nil {
+			respondWithError(c, http.StatusInternalServerError, "Failed to complete multipart upload", err)
+			return
+		}
+	}
+	// Mark the file as uploaded in the database
+	if err := database.MarkFileAsUploaded(c.Request.Context(), resource.Entry.ID); err != nil {
+		if errors.Is(err, database.ErrRowNotFound) {
+			respondWithError(c, http.StatusInternalServerError, "Resource exists but file not found", err)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to mark file as uploaded", err)
+		return
+	}
+	// Return success response
+	c.JSON(http.StatusOK, gin.H{"message": "File marked as uploaded successfully"})
 }

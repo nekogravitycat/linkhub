@@ -38,7 +38,7 @@ func getEntry(ctx context.Context, slug string) (models.Entry, error) {
 		&entry.ExpiresAt,
 	); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return models.Entry{}, ErrEntryNotFound
+			return models.Entry{}, ErrRowNotFound
 		}
 		return models.Entry{}, fmt.Errorf("failed to scan entry: %w", err)
 	}
@@ -57,7 +57,7 @@ func UpdateEntry(ctx context.Context, oldSlug string, fields models.EntryUpdate)
 	// Get the existing entry
 	existingEntry, err := getEntry(ctx, oldSlug)
 	if err != nil {
-		if errors.Is(err, ErrEntryNotFound) {
+		if errors.Is(err, ErrRowNotFound) {
 			return fmt.Errorf("entry not found: %w", err)
 		}
 		return fmt.Errorf("failed to get existing entry: %w", err)
@@ -121,7 +121,7 @@ func deleteEntry(ctx context.Context, id int64) error {
 	cmdTag, err := db.Exec(ctx, query, id)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return ErrEntryNotFound
+			return ErrRowNotFound
 		}
 		return fmt.Errorf("failed to delete entry: %w", err)
 	}

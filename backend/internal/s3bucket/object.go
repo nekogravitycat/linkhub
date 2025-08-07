@@ -8,17 +8,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
 
-type CompletedPart struct {
-	ETag       string
-	PartNumber int32
-}
-
-func (p CompletedPart) ToAWSType() types.CompletedPart {
+func toAWSCompletedPart(part models.MultipartCompletePart) types.CompletedPart {
 	return types.CompletedPart{
-		ETag:       aws.String(p.ETag),
-		PartNumber: aws.Int32(p.PartNumber),
+		PartNumber: aws.Int32(part.PartNumber),
+		ETag:       aws.String(part.ETag),
 	}
 }
 
@@ -75,12 +71,12 @@ func (s *S3ObjectStorage) CreateMultipartUpload(ctx context.Context, uuid string
 	)
 }
 
-func (s *S3ObjectStorage) CompleteMultipartUpload(ctx context.Context, uuid string, uploadID string, parts []CompletedPart) (*s3.CompleteMultipartUploadOutput, error) {
+func (s *S3ObjectStorage) CompleteMultipartUpload(ctx context.Context, uuid string, info models.MultipartCompleteInfo) (*s3.CompleteMultipartUploadOutput, error) {
 	objectKey := "files/" + uuid
 
 	var awsCompletedParts []types.CompletedPart
-	for _, p := range parts {
-		awsCompletedParts = append(awsCompletedParts, p.ToAWSType())
+	for _, p := range info.Parts {
+		awsCompletedParts = append(awsCompletedParts, toAWSCompletedPart(p))
 	}
 
 	return s.client.CompleteMultipartUpload(
@@ -88,7 +84,7 @@ func (s *S3ObjectStorage) CompleteMultipartUpload(ctx context.Context, uuid stri
 		&s3.CompleteMultipartUploadInput{
 			Bucket:   aws.String(s.bucketName),
 			Key:      aws.String(objectKey),
-			UploadId: aws.String(uploadID),
+			UploadId: aws.String(info.UploadID),
 			MultipartUpload: &types.CompletedMultipartUpload{
 				Parts: awsCompletedParts,
 			},

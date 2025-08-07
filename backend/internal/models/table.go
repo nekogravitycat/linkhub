@@ -30,13 +30,6 @@ CREATE INDEX IF NOT EXISTS idx_links_entry_id ON links(entry_id);
 CREATE INDEX IF NOT EXISTS idx_files_entry_id ON files(entry_id);
 */
 
-type ResourceType string
-
-const (
-	ResourceTypeLink ResourceType = "link"
-	ResourceTypeFile ResourceType = "file"
-)
-
 type Resource struct {
 	Entry Entry `json:"entry"`          // The entry associated with the resource
 	Link  *Link `json:"link,omitempty"` // Optional link details

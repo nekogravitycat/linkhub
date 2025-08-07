@@ -40,15 +40,21 @@ type CreateFileRequest struct {
 	ExpiresAt   *time.Time `json:"expires_at,omitempty"`         // Optional expiration time
 }
 
-// CompleteMultipartUploadRequest defines the request body for completing a multipart upload
-type CompleteMultipartUploadRequest struct {
-	FileUUID string          `json:"file_uuid" binding:"required"` // UUID of the file being uploaded
-	UploadID string          `json:"upload_id" binding:"required"` // Multipart upload ID
-	Parts    []CompletedPart `json:"parts" binding:"required"`     // List of all uploaded parts with ETags
+// UploadFileCompleteRequest defines the request payload for completing a file upload.
+type UploadFileCompleteRequest struct {
+	FileUUID  string                 `json:"file_uuid" binding:"required"` // UUID of the file being uploaded
+	Type      UploadType             `json:"type" binding:"required"`      // Type of upload: "single" or "multipart"
+	Multipart *MultipartCompleteInfo `json:"multipart,omitempty"`          // Multipart upload completion details, present iff type == "multipart"
 }
 
-// CompletedPart represents a part that has been uploaded and confirmed with its ETag
-type CompletedPart struct {
-	PartNumber int    `json:"part_number" binding:"required"` // Part number (1-based index)
+// MultipartCompleteInfo defines the request body for completing a multipart file upload.
+type MultipartCompleteInfo struct {
+	UploadID string                  `json:"upload_id" binding:"required"` // Multipart upload ID
+	Parts    []MultipartCompletePart `json:"parts" binding:"required"`     // List of all uploaded parts with ETags
+}
+
+// MultipartCompletePart represents a single uploaded part of a multipart upload.
+type MultipartCompletePart struct {
+	PartNumber int32  `json:"part_number" binding:"required"` // Part number (1-based index)
 	ETag       string `json:"etag" binding:"required"`        // ETag returned from S3 for the part
 }

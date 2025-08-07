@@ -18,7 +18,7 @@ func isExpired(resource models.Resource, now time.Time) bool {
 	return resource.Entry.ExpiresAt.UTC().Before(now.UTC())
 }
 
-func calculatePasswordHash(password string) (string, error) {
+func getPasswordHash(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 12)
 	if err != nil {
 		return "", err
@@ -27,14 +27,13 @@ func calculatePasswordHash(password string) (string, error) {
 }
 
 func isPasswordCorrect(hash string, password string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	if err == nil {
-		return true, nil
+	if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)); err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to compare password hash: %w", err)
 	}
-	if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
-		return false, nil
-	}
-	return false, err
+	return true, nil
 }
 
 func populateDownloadURL(ctx context.Context, resp *models.GetResourceResponse, uuid string) error {
@@ -43,73 +42,104 @@ func populateDownloadURL(ctx context.Context, resp *models.GetResourceResponse, 
 	}
 	s3Client := s3bucket.GetS3Client()
 	presigner := s3bucket.NewPresigner(s3Client, 1*time.Minute)
-	var err error
-	resp.File.DownloadURL, err = presigner.Get(ctx, uuid)
+
+	url, err := presigner.Get(ctx, uuid)
 	if err != nil {
 		return fmt.Errorf("failed to generate download URL: %w", err)
 	}
+	resp.File.DownloadURL = url
 	return nil
 }
+
+// partSize defines the maximum size of a single part in a multipart upload.
+// It is also the threshold for deciding between single and multipart uploads.
+const partSize = 50 * 1024 * 1024 // 50MB
 
 // Create the upload response based on the file size.
 // It selects single or multipart upload, initializes the upload session if needed,
 // and returns the appropriate pre-signed URL(s) for uploading to S3.
-func GenerateUploadResponse(ctx context.Context, request models.CreateFileRequest, fileUUID string) (models.UploadFileResponse, error) {
-	resp := models.UploadFileResponse{FileUUID: fileUUID}
-	// Create the S3 client and presigner
-	s3Client := s3bucket.GetS3Client()
-	presigner := s3bucket.NewPresigner(s3Client, 30*time.Minute)
+func generateUploadResponse(ctx context.Context, request models.CreateFileRequest, fileUUID string) (models.UploadFileResponse, error) {
+	resp := models.UploadFileResponse{
+		FileUUID: fileUUID,
+	}
 
 	// Decide upload type based on the request size
-	const partSize = 50 * 1024 * 1024 // 50MB
-
 	if request.Size <= partSize {
 		// Single file upload
 		resp.Type = models.UploadTypeSingle
-
-		// Generate a pre-signed URL for the single upload
-		uploadURL, err := presigner.Put(ctx, fileUUID, request.MIMEType)
+		info, err := createSingleUpload(ctx, fileUUID, request.MIMEType)
 		if err != nil {
-			return models.UploadFileResponse{}, fmt.Errorf("failed to get upload URL: %w", err)
+			return models.UploadFileResponse{}, fmt.Errorf("failed to create single upload: %w", err)
 		}
-
-		// Add the single upload config to the response
-		resp.Single = &models.SingleUploadConfig{
-			UploadURL: uploadURL,
-		}
-
+		resp.Single = &info
 	} else {
 		// Multipart upload, 50MB per part
 		resp.Type = models.UploadTypeMultipart
-
-		// Create multipart upload session
-		objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
-		createResp, err := objectStorage.CreateMultipartUpload(ctx, fileUUID, request.MIMEType)
-		if err != nil || createResp.UploadId == nil {
+		info, err := createMultipartUpload(ctx, fileUUID, request.MIMEType, request.Size)
+		if err != nil {
 			return models.UploadFileResponse{}, fmt.Errorf("failed to create multipart upload: %w", err)
 		}
-
-		// Generate presigned URLs for each part
-		numParts := int((request.Size + partSize - 1) / partSize) // Round up to nearest part size
-		partURLs, err := presigner.UploadPart(ctx, fileUUID, *createResp.UploadId, numParts)
-		if err != nil {
-			return models.UploadFileResponse{}, fmt.Errorf("failed to generate multipart upload URLs: %w", err)
-		}
-
-		// Build multipart upload response
-		parts := []models.MultipartPart{}
-		for i, url := range partURLs {
-			parts = append(parts, models.MultipartPart{
-				PartNumber: i + 1, // 1-based index
-				UploadURL:  url,
-			})
-		}
-
-		// Add multipart upload config to the response
-		resp.Multipart = &models.MultipartUploadConfig{
-			UploadID: *createResp.UploadId,
-			Parts:    parts,
-		}
+		resp.Multipart = &info
 	}
+
 	return resp, nil
+}
+
+func createSingleUpload(ctx context.Context, uuid string, mime string) (models.SingleUploadInfo, error) {
+	s3Client := s3bucket.GetS3Client()
+	presigner := s3bucket.NewPresigner(s3Client, 30*time.Minute)
+
+	// Generate a pre-signed URL for the single upload
+	uploadURL, err := presigner.Put(ctx, uuid, mime)
+	if err != nil {
+		return models.SingleUploadInfo{}, fmt.Errorf("failed to get upload URL: %w", err)
+	}
+
+	// Return the single upload info
+	return models.SingleUploadInfo{
+		UploadURL: uploadURL,
+	}, nil
+}
+
+func createMultipartUpload(ctx context.Context, uuid string, mime string, size int64) (models.MultipartUploadInfo, error) {
+	s3Client := s3bucket.GetS3Client()
+	objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
+	presigner := s3bucket.NewPresigner(s3Client, 30*time.Minute)
+
+	// Create multipart upload session
+	createResp, err := objectStorage.CreateMultipartUpload(ctx, uuid, mime)
+	if err != nil || createResp.UploadId == nil {
+		return models.MultipartUploadInfo{}, fmt.Errorf("failed to create multipart upload: %w", err)
+	}
+
+	// Generate presigned URLs for each part
+	numParts := int32((size + partSize - 1) / partSize) // Round up to nearest part size
+	partURLs, err := presigner.UploadPart(ctx, uuid, *createResp.UploadId, numParts)
+	if err != nil {
+		return models.MultipartUploadInfo{}, fmt.Errorf("failed to generate multipart upload URLs: %w", err)
+	}
+
+	// Build multipart upload part
+	parts := []models.MultipartUploadPart{}
+	for i, url := range partURLs {
+		parts = append(parts, models.MultipartUploadPart{
+			PartNumber: int32(i + 1), // 1-based index
+			UploadURL:  url,
+		})
+	}
+
+	// Build and return multipart upload info
+	return models.MultipartUploadInfo{
+		UploadID: *createResp.UploadId,
+		Parts:    parts,
+	}, nil
+}
+
+func completeMultipartUpload(ctx context.Context, uuid string, info models.MultipartCompleteInfo) error {
+	s3Client := s3bucket.GetS3Client()
+	objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
+	if _, err := objectStorage.CompleteMultipartUpload(ctx, uuid, info); err != nil {
+		return fmt.Errorf("failed to complete multipart upload: %w", err)
+	}
+	return nil
 }

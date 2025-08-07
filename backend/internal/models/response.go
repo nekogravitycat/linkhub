@@ -20,35 +20,27 @@ type PublicFile struct {
 	Size        int64  `json:"size" binding:"required"`         // File size in bytes
 }
 
-// UploadType represents the type of upload: single or multipart
-type UploadType string
-
-const (
-	UploadTypeSingle    UploadType = "single"
-	UploadTypeMultipart UploadType = "multipart"
-)
-
 // UploadFileResponse defines the response structure after requesting to upload a file
 type UploadFileResponse struct {
-	FileUUID  string                 `json:"file_uuid" binding:"required"` // UUID for the file, used as the S3 filename
-	Type      UploadType             `json:"type" binding:"required"`      // Type of upload: "single" or "multipart"
-	Single    *SingleUploadConfig    `json:"single,omitempty"`             // Config for single upload, present iff type == "single"
-	Multipart *MultipartUploadConfig `json:"multipart,omitempty"`          // Config for multipart upload, present iff type == "multipart"
+	FileUUID  string               `json:"file_uuid" binding:"required"` // UUID for the file, used as the S3 filename
+	Type      UploadType           `json:"type" binding:"required"`      // Type of upload: "single" or "multipart"
+	Single    *SingleUploadInfo    `json:"single,omitempty"`             // Config for single upload, present iff type == "single"
+	Multipart *MultipartUploadInfo `json:"multipart,omitempty"`          // Config for multipart upload, present iff type == "multipart"
 }
 
-// SingleUploadConfig defines the configuration for a single file upload
-type SingleUploadConfig struct {
+// SingleUploadInfo defines the configuration for a single file upload
+type SingleUploadInfo struct {
 	UploadURL string `json:"upload_url" binding:"required"` // Pre-signed URL for the single upload
 }
 
-// MultipartUploadConfig defines the configuration for a multipart file upload
-type MultipartUploadConfig struct {
-	UploadID string          `json:"upload_id" binding:"required"` // Multipart upload ID
-	Parts    []MultipartPart `json:"parts" binding:"required"`     // List of all uploaded parts
+// MultipartUploadInfo defines the request body for completing a multipart upload
+type MultipartUploadInfo struct {
+	UploadID string                `json:"upload_id" binding:"required"` // Multipart upload ID
+	Parts    []MultipartUploadPart `json:"parts" binding:"required"`     // List of all uploaded parts with ETags
 }
 
-// MultipartPart represents a single part in a multipart upload
-type MultipartPart struct {
-	PartNumber int    `json:"part_number" binding:"required"` // Part number (1-based index)
-	UploadURL  string `json:"upload_url" binding:"required"`  // Pre-signed URL for this part
+// MultipartUploadPart represents a part of a multipart upload
+type MultipartUploadPart struct {
+	PartNumber int32  `json:"part_number" binding:"required"` // Part number (1-based index)
+	UploadURL  string `json:"upload_url" binding:"required"`  // Pre-signed URL for uploading this part
 }

@@ -2,8 +2,10 @@ package database
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 )
 
@@ -35,6 +37,32 @@ func getFile(ctx context.Context, entryID int64) (models.File, error) {
 	}
 
 	return file, nil
+}
+
+func MarkFileAsUploaded(ctx context.Context, entryID int64) error {
+	if entryID <= 0 {
+		return fmt.Errorf("invalid entry ID: must be positive")
+	}
+
+	db := GetDBClient()
+
+	const query = `
+		UPDATE files
+		SET pending = false
+		WHERE entry_id = $1
+	`
+	cmdTag, err := db.Exec(ctx, query, entryID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrRowNotFound
+		}
+		return fmt.Errorf("failed to mark file as uploaded: %w", err)
+	}
+	if cmdTag.RowsAffected() == 0 {
+		return fmt.Errorf("no file found for entry ID %d", entryID)
+	}
+
+	return nil
 }
 
 // Use InsertResource to insert a file entry along with its file metadata.
