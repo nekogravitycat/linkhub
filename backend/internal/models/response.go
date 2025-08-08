@@ -44,3 +44,9 @@ type MultipartUploadPart struct {
 	PartNumber int32  `json:"part_number" binding:"required"` // Part number (1-based index)
 	UploadURL  string `json:"upload_url" binding:"required"`  // Pre-signed URL for uploading this part
 }
+
+// S3HeadResponse represents the partial response from an S3 HEAD request
+type S3HeadResponse struct {
+	MIMEType string `json:"mime_type"` // MIME type of the file in S3
+	Size     int64  `json:"size"`      // Size of the file in S3
+}

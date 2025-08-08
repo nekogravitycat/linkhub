@@ -42,9 +42,8 @@ type CreateFileRequest struct {
 
 // UploadFileCompleteRequest defines the request payload for completing a file upload.
 type UploadFileCompleteRequest struct {
-	FileUUID  string                 `json:"file_uuid" binding:"required"` // UUID of the file being uploaded
-	Type      UploadType             `json:"type" binding:"required"`      // Type of upload: "single" or "multipart"
-	Multipart *MultipartCompleteInfo `json:"multipart,omitempty"`          // Multipart upload completion details, present iff type == "multipart"
+	Type      UploadType             `json:"type" binding:"required"` // Type of upload: "single" or "multipart"
+	Multipart *MultipartCompleteInfo `json:"multipart,omitempty"`     // Multipart upload completion details, present iff type == "multipart"
 }
 
 // MultipartCompleteInfo defines the request body for completing a multipart file upload.

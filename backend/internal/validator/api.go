@@ -93,9 +93,6 @@ func ValidateCreateFileRequest(request models.CreateFileRequest, now time.Time) 
 }
 
 func ValidateUploadFileCompleteRequest(request models.UploadFileCompleteRequest) error {
-	if err := ValidateUUID(request.FileUUID); err != nil {
-		return fmt.Errorf("invalid file UUID: %w", err)
-	}
 	if err := ValidateUploadType(request.Type); err != nil {
 		return fmt.Errorf("invalid upload type: %w", err)
 	}
@@ -138,6 +135,16 @@ func ValidateMultipartCompletePart(part models.MultipartCompletePart) error {
 	}
 	if err := ValidateSingleFileETag(part.ETag); err != nil {
 		return fmt.Errorf("invalid ETag: %w", err)
+	}
+	return nil
+}
+
+func ValidateS3HeadResponse(response models.S3HeadResponse) error {
+	if err := ValidateMIMEType(response.MIMEType); err != nil {
+		return fmt.Errorf("invalid MIME type: %w", err)
+	}
+	if response.Size <= 0 {
+		return fmt.Errorf("invalid file size: must be positive")
 	}
 	return nil
 }

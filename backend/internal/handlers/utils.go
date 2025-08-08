@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 	"github.com/nekogravitycat/linkhub/backend/internal/models"
 	"github.com/nekogravitycat/linkhub/backend/internal/s3bucket"
 	"golang.org/x/crypto/bcrypt"
@@ -142,4 +143,29 @@ func completeMultipartUpload(ctx context.Context, uuid string, info models.Multi
 		return fmt.Errorf("failed to complete multipart upload: %w", err)
 	}
 	return nil
+}
+
+var ErrS3NotFound = fmt.Errorf("file not found in S3")
+
+func headS3File(ctx context.Context, file models.File) (models.S3HeadResponse, error) {
+	s3Client := s3bucket.GetS3Client()
+	objectStorage := s3bucket.NewS3ObjectStorage(s3Client)
+
+	head, err := objectStorage.HeadObject(ctx, file.FileUUID)
+	if err != nil || head == nil {
+		var notFound *types.NotFound
+		if errors.As(err, &notFound) {
+			return models.S3HeadResponse{}, ErrS3NotFound
+		}
+		return models.S3HeadResponse{}, fmt.Errorf("failed to head S3 file: %w", err)
+	}
+
+	if head.ContentType == nil || head.ContentLength == nil {
+		return models.S3HeadResponse{}, fmt.Errorf("missing required S3 head response fields")
+	}
+
+	return models.S3HeadResponse{
+		MIMEType: *head.ContentType,
+		Size:     *head.ContentLength,
+	}, nil
 }

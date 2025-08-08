@@ -405,15 +405,30 @@ func markFileResourceUploaded(c *gin.Context) {
 		respondWithError(c, http.StatusConflict, "File is already marked as uploaded", nil)
 		return
 	}
+	// Check if the file exists in S3 storage, and head the file to get its metadata
+	head, err := headS3File(c.Request.Context(), *resource.File)
+	if err != nil {
+		if errors.Is(err, ErrS3NotFound) {
+			respondWithError(c, http.StatusConflict, "File entry exists but file is missing in S3", err)
+			return
+		}
+		respondWithError(c, http.StatusInternalServerError, "Failed to check S3 file", err)
+		return
+	}
+	// Validate the S3 file response
+	if err := validator.ValidateS3HeadResponse(head); err != nil {
+		respondWithError(c, http.StatusInternalServerError, "Invalid S3 file response", err)
+		return
+	}
 	// If the request is multipart upload, complete the multipart upload
 	if request.Type == models.UploadTypeMultipart {
-		if err := completeMultipartUpload(c.Request.Context(), request.FileUUID, *request.Multipart); err != nil {
+		if err := completeMultipartUpload(c.Request.Context(), resource.File.FileUUID, *request.Multipart); err != nil {
 			respondWithError(c, http.StatusInternalServerError, "Failed to complete multipart upload", err)
 			return
 		}
 	}
-	// Mark the file as uploaded in the database
-	if err := database.MarkFileAsUploaded(c.Request.Context(), resource.Entry.ID); err != nil {
+	// Mark the file as uploaded and update its metadata in the database
+	if err := database.MarkFileAsUploaded(c.Request.Context(), resource.Entry.ID, head); err != nil {
 		if errors.Is(err, database.ErrRowNotFound) {
 			respondWithError(c, http.StatusInternalServerError, "Resource exists but file not found", err)
 			return

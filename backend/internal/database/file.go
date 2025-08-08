@@ -42,7 +42,8 @@ func getFile(ctx context.Context, entryID int64) (models.File, error) {
 	return file, nil
 }
 
-func MarkFileAsUploaded(ctx context.Context, entryID int64) error {
+// MarkFileAsUploaded updates the file entry to mark it as uploaded and sets its metadata.
+func MarkFileAsUploaded(ctx context.Context, entryID int64, s3HeadResp models.S3HeadResponse) error {
 	if entryID <= 0 {
 		return fmt.Errorf("invalid entry ID: must be positive")
 	}
@@ -51,10 +52,10 @@ func MarkFileAsUploaded(ctx context.Context, entryID int64) error {
 
 	const query = `
 		UPDATE files
-		SET pending = false
+		SET pending = false, mime_type = $2, size = $3
 		WHERE entry_id = $1
 	`
-	cmdTag, err := db.Exec(ctx, query, entryID)
+	cmdTag, err := db.Exec(ctx, query, entryID, s3HeadResp.MIMEType, s3HeadResp.Size)
 	if err != nil {
 		return fmt.Errorf("failed to mark file as uploaded: %w", err)
 	}
