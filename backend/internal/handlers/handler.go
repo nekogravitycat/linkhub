@@ -148,7 +148,7 @@ func listResources(c *gin.Context) {
 		respondWithError(c, http.StatusBadRequest, "Invalid pagination parameters, page and limit must be integers.", nil)
 		return
 	}
-	if page < 1 || limit < 1 || limit > 100 {
+	if page < 1 || page > 1000 || limit < 1 || limit > 100 {
 		respondWithError(c, http.StatusBadRequest, "Invalid pagination parameters, page and limit must be positive and limit must not exceed 100.", nil)
 		return
 	}
@@ -397,7 +397,7 @@ func markFileResourceUploaded(c *gin.Context) {
 		return
 	}
 	if resource.File == nil {
-		respondWithError(c, http.StatusInternalServerError, "File entry exists but file is missing", nil)
+		respondWithError(c, http.StatusInternalServerError, "File entry exists but file data is missing", nil)
 		return
 	}
 	// If the file is already marked as uploaded, return a conflict error

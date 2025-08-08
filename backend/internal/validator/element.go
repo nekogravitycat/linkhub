@@ -73,7 +73,7 @@ func ValidatePasswordHash(passwordHash string) error {
 }
 
 // Validate if target_url is 1 to 2000 characters long.
-// It must be a valid URL with scheme and host.
+// It must be a valid URL with scheme http/https and host.
 func ValidateTargetURL(targetURL string) error {
 	if len(targetURL) < 1 || len(targetURL) > 2000 {
 		return fmt.Errorf("target_url must be between 1 and 2000 characters long")
@@ -81,6 +81,11 @@ func ValidateTargetURL(targetURL string) error {
 	parsed, err := url.ParseRequestURI(targetURL)
 	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
 		return fmt.Errorf("target_url must be a valid URL with scheme and host")
+	}
+	// Allow only http and https
+	scheme := strings.ToLower(parsed.Scheme)
+	if scheme != "http" && scheme != "https" {
+		return fmt.Errorf("target_url must use http or https scheme")
 	}
 	return nil
 }
