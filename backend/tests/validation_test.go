@@ -76,6 +76,14 @@ func TestCreateLinkRequest_Validate(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "url too long",
+			req: lhttp.CreateLinkRequest{
+				Slug: "valid-slug",
+				URL:  "https://example.com/" + strings.Repeat("a", 2048),
+			},
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,6 +122,14 @@ func TestUpdateLinkRequest_Validate(t *testing.T) {
 			name: "empty url",
 			req: lhttp.UpdateLinkRequest{
 				URL:      ptrString(""),
+				IsActive: ptrBool(true),
+			},
+			wantErr: true,
+		},
+		{
+			name: "url too long",
+			req: lhttp.UpdateLinkRequest{
+				URL:      ptrString("https://example.com/" + strings.Repeat("a", 2048)),
 				IsActive: ptrBool(true),
 			},
 			wantErr: true,

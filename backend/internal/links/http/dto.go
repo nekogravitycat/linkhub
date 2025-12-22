@@ -40,6 +40,9 @@ func (r *CreateLinkRequest) Validate() error {
 	if r.URL == "" {
 		return errors.New("url is required")
 	}
+	if len(r.URL) > 2048 {
+		return errors.New("url is too long (max 2048 chars)")
+	}
 	if r.Slug != "" {
 		return ValidateSlug(r.Slug)
 	}
@@ -47,8 +50,13 @@ func (r *CreateLinkRequest) Validate() error {
 }
 
 func (r *UpdateLinkRequest) Validate() error {
-	if r.URL != nil && *r.URL == "" {
-		return errors.New("url cannot be empty")
+	if r.URL != nil {
+		if *r.URL == "" {
+			return errors.New("url cannot be empty")
+		}
+		if len(*r.URL) > 2048 {
+			return errors.New("url is too long (max 2048 chars)")
+		}
 	}
 	return nil
 }
