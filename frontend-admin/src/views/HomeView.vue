@@ -25,6 +25,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { toast } from "vue-sonner"
 
 const linksStore = useLinksStore()
 const { links, loading, error } = storeToRefs(linksStore)
@@ -54,11 +55,10 @@ const copyToClipboard = async (slug: string) => {
   const url = `${BASE_SHORT_URL}/${slug}`
   try {
     await navigator.clipboard.writeText(url)
-    // Ideally use a toast here. For now, we assume simple feedback isn't strictly blocking.
-    // If toast component is set up: useToast().toast({ title: "Copied!" })
-    alert(`Copied to clipboard: ${url}`)
+    toast.success("Shorten link copied!")
   } catch (err) {
     console.error("Failed to copy", err)
+    toast.error("Failed to copy link")
   }
 }
 
@@ -138,23 +138,27 @@ const formatDate = (dateStr: string) => {
               {{ formatDate(link.created_at) }}
             </TableCell>
             <TableCell class="text-right">
-              <DropdownMenu>
-                <DropdownMenuTrigger as-child>
-                  <Button variant="ghost" class="h-8 w-8 p-0">
-                    <span class="sr-only">Open menu</span>
-                    <MoreHorizontal class="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                  <DropdownMenuItem @click="copyToClipboard(link.slug)"> <Copy class="mr-2 h-4 w-4" /> Copy Short URL </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem @click="openEditDialog(link)"> <Pencil class="mr-2 h-4 w-4" /> Edit </DropdownMenuItem>
-                  <DropdownMenuItem @click="deleteLink(link)" class="text-destructive focus:text-destructive">
-                    <Trash2 class="mr-2 h-4 w-4" /> Delete
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div class="flex items-center justify-end gap-1">
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click="copyToClipboard(link.slug)">
+                  <Copy class="h-4 w-4" />
+                  <span class="sr-only">Copy short URL</span>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button variant="ghost" class="h-8 w-8 p-0">
+                      <span class="sr-only">Open menu</span>
+                      <MoreHorizontal class="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                    <DropdownMenuItem @click="openEditDialog(link)"> <Pencil class="mr-2 h-4 w-4" /> Edit </DropdownMenuItem>
+                    <DropdownMenuItem @click="deleteLink(link)" class="text-destructive focus:text-destructive">
+                      <Trash2 class="mr-2 h-4 w-4" /> Delete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             </TableCell>
           </TableRow>
         </TableBody>

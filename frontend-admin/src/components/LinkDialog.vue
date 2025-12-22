@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, computed } from "vue"
+import { toast } from "vue-sonner"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -104,10 +105,13 @@ const handleSubmit = async () => {
     } else {
       await store.createLink(slug, url)
     }
+    toast.success(isEditMode.value ? "Link updated successfully" : "Link created successfully")
     emit("saved")
     emit("update:open", false)
   } catch (e: any) {
-    errorMessage.value = e.response?.data?.error || e.message || "An error occurred"
+    const msg = e.response?.data?.error || e.message || "An error occurred"
+    errorMessage.value = msg
+    toast.error(msg)
   } finally {
     isLoading.value = false
   }
