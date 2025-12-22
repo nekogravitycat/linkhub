@@ -69,9 +69,14 @@ const deleteLink = (link: Link) => {
 
 const confirmDelete = async () => {
   if (linkToDelete.value) {
-    await linksStore.deleteLink(linkToDelete.value.slug)
-    isDeleteDialogOpen.value = false
-    linkToDelete.value = null
+    try {
+      await linksStore.deleteLink(linkToDelete.value.slug)
+      toast.success("Link deleted successfully")
+      isDeleteDialogOpen.value = false
+      linkToDelete.value = null
+    } catch (error) {
+      toast.error("Failed to delete link")
+    }
   }
 }
 
@@ -85,14 +90,14 @@ const formatDate = (dateStr: string) => {
 </script>
 
 <template>
-  <div class="container mx-auto py-6 px-4 md:py-10">
+  <div class="w-full max-w-7xl mx-auto py-10 px-6">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
+    <div class="flex flex-row items-center justify-between mb-8 gap-4">
       <div>
-        <h1 class="text-3xl font-bold tracking-tight text-foreground">GravityCat Admin</h1>
+        <h1 class="text-3xl font-bold tracking-tight text-foreground">Linkhub</h1>
         <p class="text-muted-foreground">Manage your shortened links.</p>
       </div>
-      <Button @click="openCreateDialog"> <Plus class="mr-2 h-4 w-4" /> Create New </Button>
+      <Button @click="openCreateDialog"> <Plus class="mr-2 h-4 w-4" /> Create </Button>
     </div>
 
     <!-- Error State -->
@@ -100,7 +105,7 @@ const formatDate = (dateStr: string) => {
 
     <!-- Data Table -->
     <div class="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden overflow-x-auto">
-      <Table>
+      <Table class="table-fixed">
         <TableHeader>
           <TableRow>
             <TableHead class="w-[150px]">Slug</TableHead>
@@ -119,14 +124,20 @@ const formatDate = (dateStr: string) => {
             <TableCell colspan="5" class="h-24 text-center text-muted-foreground">No links found.</TableCell>
           </TableRow>
 
-          <TableRow v-for="link in links" :key="link.id">
+          <TableRow v-for="link in links" :key="link.id" @click="openEditDialog(link)" class="cursor-pointer">
             <TableCell class="font-medium">
-              <a :href="`${BASE_SHORT_URL}/${link.slug}`" target="_blank" class="hover:underline flex items-center gap-1">
-                /{{ link.slug }}
-                <ExternalLink class="h-3 w-3 opacity-50" />
+              <a
+                :href="`${BASE_SHORT_URL}/${link.slug}`"
+                target="_blank"
+                class="hover:underline flex items-center gap-1 max-w-full pointer-events-none md:pointer-events-auto"
+                :title="link.slug"
+                @click.stop
+              >
+                <span class="truncate">/{{ link.slug }}</span>
+                <ExternalLink class="h-3 w-3 opacity-50 shrink-0 hidden md:block" />
               </a>
             </TableCell>
-            <TableCell class="hidden md:table-cell max-w-[200px] md:max-w-[400px] truncate" :title="link.url">
+            <TableCell class="hidden md:table-cell truncate" :title="link.url">
               {{ link.url }}
             </TableCell>
             <TableCell>
@@ -139,19 +150,18 @@ const formatDate = (dateStr: string) => {
             </TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end gap-1">
-                <Button variant="ghost" size="icon" class="h-8 w-8" @click="copyToClipboard(link.slug)">
+                <Button variant="ghost" size="icon" class="h-8 w-8" @click.stop="copyToClipboard(link.slug)">
                   <Copy class="h-4 w-4" />
                   <span class="sr-only">Copy short URL</span>
                 </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger as-child>
-                    <Button variant="ghost" class="h-8 w-8 p-0">
+                    <Button variant="ghost" class="h-8 w-8 p-0" @click.stop>
                       <span class="sr-only">Open menu</span>
                       <MoreHorizontal class="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
                     <DropdownMenuItem @click="openEditDialog(link)"> <Pencil class="mr-2 h-4 w-4" /> Edit </DropdownMenuItem>
                     <DropdownMenuItem @click="deleteLink(link)" class="text-destructive focus:text-destructive">
                       <Trash2 class="mr-2 h-4 w-4" /> Delete
