@@ -1,0 +1,10 @@
+{
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.expand": false,
+  "explorer.fileNesting.patterns": {
+    "go.mod": "go.sum, go.work, go.work.sum, vendor",
+    "compose.yml": "*compose.yml",
+    ".env": ".env.*",
+    "Dockerfile": ".dockerignore, Dockerfile*",
+  }
+}
