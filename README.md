@@ -44,7 +44,7 @@ This will expose:
 
 ### Frontend Admin Dashboard
 
-> [!WARNING] > **Security Warning**: The `frontend-admin` application currently has **NO AUTHENTICATION OR PROTECTION**. It allows full control over the link database.
+> **Security Warning**: The `frontend-admin` application currently has **NO AUTHENTICATION OR PROTECTION**. It allows full control over the link database.
 >
 > **DO NOT EXPOSE THIS TO THE PUBLIC INTERNET.**
 >
