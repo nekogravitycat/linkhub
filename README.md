@@ -44,12 +44,6 @@ This will expose:
 
 ### Frontend Admin Dashboard
 
-> **Security Warning**: The `frontend-admin` application currently has **NO AUTHENTICATION OR PROTECTION**. It allows full control over the link database.
->
-> **DO NOT EXPOSE THIS TO THE PUBLIC INTERNET.**
->
-> Deploy this only behind a trusted VPN, secure internal network, or protected by an external authentication layer (e.g., Basic Auth, OAuth2 Proxy, Cloudflare Access).
-
 To build and deploy the frontend:
 
 1.  Navigate to the `frontend-admin` directory:
@@ -77,6 +71,28 @@ To build and deploy the frontend:
     ```bash
     npx serve -s dist
     ```
+
+## Security & Access Control
+
+### API (`http://localhost:8001`)
+
+The backend API **does not have built-in authentication**. Anyone with access to port 8001 can create, edit, or delete links.
+
+> ⚠️ **You MUST implement an access control layer** if you expose the API to the internet.
+
+**Recommended Solutions:**
+
+- **Cloudflare Access / Zero Trust**: Put the API domain behind Cloudflare Access.
+- **OAuth2 Proxy**: Run an OAuth2 proxy (Google, GitHub, login) in front of the API container.
+- **Basic Auth**: Configure Basic Auth in Nginx or Traefik.
+- **VPN / Private Network**: Only access the API via a secure tunnel (Tailscale, WireGuard).
+
+### Frontend Admin
+
+The `frontend-admin` is a static Single Page Application (SPA).
+
+- **Exposure**: If you have correctly secured the API (as described above), it is **technically safe** to expose the frontend static files to the public internet, as all sensitive operations require API access.
+- **Recommendation**: Despite being technically safe, it is **still not recommended** to expose the admin dashboard publically. It is best practice to keep the admin UI behind the same access control layer as your API to prevent confusion and reduce the attack surface.
 
 ## Configuration
 
