@@ -11,7 +11,11 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 	if cfg.IsProduction {
 		gin.SetMode(gin.ReleaseMode)
 	}
-	r := gin.Default()
+
+	r := gin.New()
+
+	// Global Middleware
+	r.Use(gin.Logger(), gin.Recovery())
 
 	// CORS Config
 	corsConfig := cors.DefaultConfig()
