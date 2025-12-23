@@ -16,11 +16,18 @@ export const useLinksStore = defineStore("links", () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchLinks = async () => {
+  const fetchLinks = async (
+    params: {
+      page?: number
+      page_size?: number
+      sort_by?: string
+      sort_order?: "asc" | "desc"
+    } = {},
+  ) => {
     loading.value = true
     error.value = null
     try {
-      const response = await api.get("/private/links")
+      const response = await api.get("/links", { params })
       links.value = response.data
     } catch (err: any) {
       error.value = err.message || "Failed to fetch links"
@@ -34,8 +41,7 @@ export const useLinksStore = defineStore("links", () => {
     loading.value = true
     error.value = null
     try {
-      await api.post("/private/links", { slug, url })
-      await fetchLinks()
+      await api.post("/links", { slug, url })
     } catch (err: any) {
       error.value = err.message || "Failed to create link"
       throw err
@@ -48,8 +54,7 @@ export const useLinksStore = defineStore("links", () => {
     loading.value = true
     error.value = null
     try {
-      await api.patch(`/private/links/${slug}`, data)
-      await fetchLinks()
+      await api.patch(`/links/${slug}`, data)
     } catch (err: any) {
       error.value = err.message || "Failed to update link"
       throw err
@@ -62,8 +67,7 @@ export const useLinksStore = defineStore("links", () => {
     loading.value = true
     error.value = null
     try {
-      await api.delete(`/private/links/${slug}`)
-      await fetchLinks()
+      await api.delete(`/links/${slug}`)
     } catch (err: any) {
       error.value = err.message || "Failed to delete link"
       throw err

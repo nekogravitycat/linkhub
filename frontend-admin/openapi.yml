@@ -8,10 +8,10 @@ servers:
     description: Local API Server
 
 paths:
-  /public/{slug}:
+  /redirect/{slug}:
     get:
       tags:
-        - Public
+        - Redirect
       summary: Redirect to the original URL
       description: Redirects the user to the original URL associated with the provided slug.
       operationId: redirectLink
@@ -28,10 +28,10 @@ paths:
         "404":
           description: Link not found or inactive.
 
-  /private/links:
+  /links:
     get:
       tags:
-        - Private
+        - Links
       summary: List all links
       description: Retrieves a list of all created links.
       operationId: listLinks
@@ -78,7 +78,7 @@ paths:
 
     post:
       tags:
-        - Private
+        - Links
       summary: Create a new link
       description: Creates a new short link.
       operationId: createLink
@@ -98,10 +98,10 @@ paths:
         "500":
           description: Internal server error.
 
-  /private/links/{slug}:
+  /links/{slug}:
     get:
       tags:
-        - Private
+        - Links
       summary: Get a link by slug
       description: Retrieves details of a specific link.
       operationId: getLink
@@ -128,7 +128,7 @@ paths:
 
     patch:
       tags:
-        - Private
+        - Links
       summary: Update a link
       description: Updates an existing link's URL or active status.
       operationId: updateLink
@@ -157,7 +157,7 @@ paths:
 
     delete:
       tags:
-        - Private
+        - Links
       summary: Delete a link
       description: Deletes a link by its slug.
       operationId: deleteLink

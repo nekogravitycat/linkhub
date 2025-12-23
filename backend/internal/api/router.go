@@ -14,7 +14,7 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 
 	// CORS Config
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:5173"}, // Tweak as needed for production
+		AllowOrigins:     []string{"http://localhost:5173", "http://localhost:8003"}, // Tweak as needed for production
 		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},

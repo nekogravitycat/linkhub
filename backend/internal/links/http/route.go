@@ -5,22 +5,14 @@ import (
 )
 
 func RegisterRoutes(r *gin.Engine, h *Handler) {
-	// Public
-	public := r.Group("/public")
-	{
-		public.GET("/:slug", h.Redirect)
-	}
+	r.GET("/redirect/:slug", h.Redirect)
 
-	// Private
-	private := r.Group("/private")
+	links := r.Group("/links")
 	{
-		links := private.Group("/links")
-		{
-			links.GET("", h.List)
-			links.POST("", h.Create)
-			links.GET("/:slug", h.Get)
-			links.PATCH("/:slug", h.Update)
-			links.DELETE("/:slug", h.Delete)
-		}
+		links.GET("", h.List)
+		links.POST("", h.Create)
+		links.GET("/:slug", h.Get)
+		links.PATCH("/:slug", h.Update)
+		links.DELETE("/:slug", h.Delete)
 	}
 }

@@ -14,7 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Plus, Copy, Pencil, Trash2, ExternalLink } from "lucide-vue-next"
+import { MoreHorizontal, Plus, Copy, Pencil, Trash2, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-vue-next"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,8 +37,39 @@ const linkToDelete = ref<Link | null>(null)
 
 const BASE_SHORT_URL = "https://t.gravitycat.tw"
 
+const sortBy = ref<"created_at" | "updated_at" | "slug">("created_at")
+const sortOrder = ref<"asc" | "desc">("desc")
+const page = ref(1)
+const pageSize = ref(20)
+
+const fetchData = async () => {
+  await linksStore.fetchLinks({
+    page: page.value,
+    page_size: pageSize.value,
+    sort_by: sortBy.value,
+    sort_order: sortOrder.value,
+  })
+}
+
+const handleSort = (field: "created_at" | "updated_at" | "slug") => {
+  if (sortBy.value === field) {
+    if (sortOrder.value === "desc") {
+      sortOrder.value = "asc"
+    } else {
+      // Third click: Reset to default sorting (created_at DESC)
+      sortBy.value = "created_at"
+      sortOrder.value = "desc"
+    }
+  } else {
+    sortBy.value = field
+    sortOrder.value = "desc"
+  }
+  page.value = 1 // strict reset
+  fetchData()
+}
+
 onMounted(() => {
-  linksStore.fetchLinks()
+  fetchData()
 })
 
 const openCreateDialog = () => {
@@ -74,6 +105,7 @@ const confirmDelete = async () => {
       toast.success("Link deleted successfully")
       isDeleteDialogOpen.value = false
       linkToDelete.value = null
+      await fetchData()
     } catch (error) {
       toast.error("Failed to delete link")
     }
@@ -105,23 +137,57 @@ const formatDate = (dateStr: string) => {
 
     <!-- Data Table -->
     <div class="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden overflow-x-auto">
-      <Table class="table-fixed">
+      <Table class="table-fixed relative transition-opacity duration-300" :class="{ 'opacity-50 pointer-events-none': loading }">
         <TableHeader>
           <TableRow>
-            <TableHead class="w-[150px]">Slug</TableHead>
-            <TableHead class="hidden md:table-cell">Target URL</TableHead>
+            <TableHead class="sm:w-[150px] cursor-pointer hover:bg-muted/50 transition-colors select-none" @click="handleSort('slug')">
+              <div class="flex items-center gap-2">
+                Slug
+                <component
+                  :is="sortBy === 'slug' ? (sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown"
+                  class="h-4 w-4"
+                  :class="sortBy === 'slug' ? 'text-primary' : 'text-muted-foreground/30'"
+                />
+              </div>
+            </TableHead>
+            <TableHead class="hidden sm:table-cell">Target URL</TableHead>
             <TableHead class="w-[100px]">Status</TableHead>
-            <TableHead class="hidden md:table-cell w-[150px]">Created</TableHead>
+            <TableHead
+              class="hidden md:table-cell w-[150px] cursor-pointer hover:bg-muted/50 transition-colors select-none"
+              @click="handleSort('created_at')"
+            >
+              <div class="flex items-center gap-2">
+                Created
+                <component
+                  :is="sortBy === 'created_at' ? (sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown"
+                  class="h-4 w-4"
+                  :class="sortBy === 'created_at' ? 'text-primary' : 'text-muted-foreground/30'"
+                />
+              </div>
+            </TableHead>
+            <TableHead
+              class="hidden lg:table-cell w-[150px] cursor-pointer hover:bg-muted/50 transition-colors select-none"
+              @click="handleSort('updated_at')"
+            >
+              <div class="flex items-center gap-2">
+                Updated
+                <component
+                  :is="sortBy === 'updated_at' ? (sortOrder === 'asc' ? ArrowUp : ArrowDown) : ArrowUpDown"
+                  class="h-4 w-4"
+                  :class="sortBy === 'updated_at' ? 'text-primary' : 'text-muted-foreground/30'"
+                />
+              </div>
+            </TableHead>
             <TableHead class="w-[80px] text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           <TableRow v-if="loading && links.length === 0">
-            <TableCell colspan="5" class="h-24 text-center">Loading...</TableCell>
+            <TableCell colspan="6" class="h-24 text-center">Loading...</TableCell>
           </TableRow>
 
           <TableRow v-else-if="links.length === 0">
-            <TableCell colspan="5" class="h-24 text-center text-muted-foreground">No links found.</TableCell>
+            <TableCell colspan="6" class="h-24 text-center text-muted-foreground">No links found.</TableCell>
           </TableRow>
 
           <TableRow v-for="link in links" :key="link.id" @click="openEditDialog(link)" class="cursor-pointer">
@@ -134,10 +200,10 @@ const formatDate = (dateStr: string) => {
                 @click.stop
               >
                 <span class="truncate">/{{ link.slug }}</span>
-                <ExternalLink class="h-3 w-3 opacity-50 shrink-0 hidden md:block" />
+                <ExternalLink class="h-3 w-3 opacity-50 shrink-0 hidden sm:block" />
               </a>
             </TableCell>
-            <TableCell class="hidden md:table-cell truncate" :title="link.url">
+            <TableCell class="hidden sm:table-cell truncate" :title="link.url">
               {{ link.url }}
             </TableCell>
             <TableCell>
@@ -147,6 +213,9 @@ const formatDate = (dateStr: string) => {
             </TableCell>
             <TableCell class="hidden md:table-cell text-muted-foreground">
               {{ formatDate(link.created_at) }}
+            </TableCell>
+            <TableCell class="hidden lg:table-cell text-muted-foreground">
+              {{ formatDate(link.updated_at) }}
             </TableCell>
             <TableCell class="text-right">
               <div class="flex items-center justify-end gap-1">
@@ -175,7 +244,7 @@ const formatDate = (dateStr: string) => {
       </Table>
     </div>
 
-    <LinkDialog v-model:open="isDialogOpen" :link-to-edit="selectedLink" @saved="linksStore.fetchLinks()" />
+    <LinkDialog v-model:open="isDialogOpen" :link-to-edit="selectedLink" @saved="fetchData()" />
 
     <AlertDialog :open="isDeleteDialogOpen" @update:open="isDeleteDialogOpen = $event">
       <AlertDialogContent>
