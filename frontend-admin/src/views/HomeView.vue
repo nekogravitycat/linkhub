@@ -13,27 +13,66 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { type Link, useLinksStore } from "@/stores/links"
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-vue-next"
+import { useDebounceFn } from "@vueuse/core"
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, Filter, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-vue-next"
 import { storeToRefs } from "pinia"
-import { onMounted, ref } from "vue"
+import { onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
 
 const linksStore = useLinksStore()
-const { links, loading, error } = storeToRefs(linksStore)
+const { links, loading: tableLoading, error } = storeToRefs(linksStore)
 
 const isDialogOpen = ref(false)
 const selectedLink = ref<Link | null>(null)
 const isDeleteDialogOpen = ref(false)
 const linkToDelete = ref<Link | null>(null)
 
-const BASE_SHORT_URL = import.meta.env.VITE_BASE_SHORT_URL || "https://example.com"
+const BASE_SHORT_URL = import.meta.env.VITE_SHORT_BASE_URL || "https://example.com"
 
 const sortBy = ref<"created_at" | "updated_at" | "slug">("created_at")
 const sortOrder = ref<"asc" | "desc">("desc")
 const page = ref(1)
 const pageSize = ref(20)
+const keyword = ref("")
+const filterStatus = ref<"all" | "active" | "inactive">("all")
+const isLoading = ref(false)
+
+const handleSearch = useDebounceFn(async () => {
+  if (isLoading.value) return
+
+  const term = keyword.value.trim()
+
+  // Validation
+  if (term.length > 0 && term.length < 3) {
+    toast.error("Search term must be at least 3 characters.")
+    return
+  }
+  if (term.length > 100) {
+    toast.error("Search term is too long (max 100 characters).")
+    return
+  }
+
+  // Lock Cycle
+  isLoading.value = true
+  try {
+    page.value = 1
+    await fetchData()
+  } catch (err) {
+    console.error("Search failed", err)
+    toast.error("Search failed. Please try again.")
+  } finally {
+    isLoading.value = false
+  }
+}, 300)
+
+const handleFilterChange = (status: "all" | "active" | "inactive") => {
+  filterStatus.value = status
+  page.value = 1
+  fetchData()
+}
 
 const fetchData = async () => {
   await linksStore.fetchLinks({
@@ -41,6 +80,8 @@ const fetchData = async () => {
     page_size: pageSize.value,
     sort_by: sortBy.value,
     sort_order: sortOrder.value,
+    keyword: keyword.value || undefined,
+    is_active: filterStatus.value === "all" ? undefined : filterStatus.value === "active",
   })
 }
 
@@ -128,9 +169,37 @@ const formatDate = (dateStr: string) => {
     <!-- Error State -->
     <div v-if="error" class="bg-destructive/15 text-destructive p-4 rounded-md mb-6">Error: {{ error }}</div>
 
+    <!-- Search and Filter Toolbar -->
+    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+      <div class="relative flex-1">
+        <Search class="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          v-model="keyword"
+          type="search"
+          placeholder="Search by slug or URL..."
+          class="pl-8"
+          :disabled="isLoading"
+          @keydown.enter="handleSearch"
+        />
+      </div>
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button variant="outline" class="w-full sm:w-[150px] justify-start">
+            <Filter class="mr-2 h-4 w-4" />
+            {{ filterStatus === "all" ? "All Status" : filterStatus === "active" ? "Active" : "Inactive" }}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem @click="handleFilterChange('all')">All Status</DropdownMenuItem>
+          <DropdownMenuItem @click="handleFilterChange('active')">Active</DropdownMenuItem>
+          <DropdownMenuItem @click="handleFilterChange('inactive')">Inactive</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+
     <!-- Data Table -->
     <div class="rounded-md border bg-card text-card-foreground shadow-sm overflow-hidden overflow-x-auto">
-      <Table class="table-fixed relative transition-opacity duration-300" :class="{ 'opacity-50 pointer-events-none': loading }">
+      <Table class="table-fixed relative transition-opacity duration-300" :class="{ 'opacity-50 pointer-events-none': tableLoading }">
         <TableHeader>
           <TableRow>
             <TableHead class="sm:w-[150px] cursor-pointer hover:bg-muted/50 transition-colors select-none" @click="handleSort('slug')">
@@ -175,11 +244,11 @@ const formatDate = (dateStr: string) => {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-if="loading && links.length === 0">
+          <TableRow v-if="tableLoading && links.length === 0">
             <TableCell colspan="6" class="h-24 text-center">Loading...</TableCell>
           </TableRow>
 
-          <TableRow v-else-if="links.length === 0">
+          <TableRow v-else-if="!links || links.length === 0">
             <TableCell colspan="6" class="h-24 text-center text-muted-foreground">No links found.</TableCell>
           </TableRow>
 

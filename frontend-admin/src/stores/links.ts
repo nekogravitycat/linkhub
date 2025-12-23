@@ -22,13 +22,15 @@ export const useLinksStore = defineStore("links", () => {
       page_size?: number
       sort_by?: string
       sort_order?: "asc" | "desc"
+      keyword?: string
+      is_active?: boolean
     } = {},
   ) => {
     loading.value = true
     error.value = null
     try {
       const response = await api.get("/links", { params })
-      links.value = response.data
+      links.value = response.data || []
     } catch (err: any) {
       error.value = err.message || "Failed to fetch links"
       console.error(err)
