@@ -1,6 +1,9 @@
 package api
 
 import (
+	"slices"
+	"strings"
+
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/nekogravitycat/linkhub/internal/config"
@@ -24,14 +27,28 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 		// Production: Strict mode, only allow exact domain match
 		corsConfig.AllowOrigins = cfg.AllowOrigins
 	} else {
-		// Development: Allow all origins
-		corsConfig.AllowAllOrigins = true
+		// Development: Use AllowOriginFunc to check dynamically
+		corsConfig.AllowOriginFunc = func(origin string) bool {
+			// Allow Prod Origins
+			if slices.Contains(cfg.AllowOrigins, origin) {
+				return true
+			}
+			// Allow localhost with ANY port
+			if strings.HasPrefix(origin, "http://localhost") || strings.HasPrefix(origin, "https://localhost") {
+				return true
+			}
+			// Allow 127.0.0.1 with ANY port
+			if strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "https://127.0.0.1") {
+				return true
+			}
+
+			return false
+		}
 	}
 
 	corsConfig.AllowMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 	corsConfig.AllowCredentials = true
-
 	r.Use(cors.New(corsConfig))
 
 	// Register Routes
