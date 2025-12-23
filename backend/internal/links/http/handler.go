@@ -54,8 +54,6 @@ func (h *Handler) List(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	// DEBUG
-	// fmt.Printf("DEBUG REQ: %+v\n", req)
 
 	if err := req.Validate(); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
