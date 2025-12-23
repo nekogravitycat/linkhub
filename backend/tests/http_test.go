@@ -46,7 +46,7 @@ func TestHTTP_CreateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("POST", "/private/links", bytes.NewBuffer(body))
+		req, _ := http.NewRequest("POST", "/links", bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusCreated, w.Code)
@@ -68,7 +68,7 @@ func TestHTTP_CreateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("POST", "/private/links", bytes.NewBuffer(body))
+		req, _ := http.NewRequest("POST", "/links", bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusConflict, w.Code)
@@ -77,7 +77,7 @@ func TestHTTP_CreateLink(t *testing.T) {
 	t.Run("Invalid Payload", func(t *testing.T) {
 		// Sending array instead of object
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("POST", "/private/links", bytes.NewBufferString("[]"))
+		req, _ := http.NewRequest("POST", "/links", bytes.NewBufferString("[]"))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -91,7 +91,7 @@ func TestHTTP_CreateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("POST", "/private/links", bytes.NewBuffer(body))
+		req, _ := http.NewRequest("POST", "/links", bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -112,7 +112,7 @@ func TestHTTP_GetLink(t *testing.T) {
 		_ = repo.Create(ctx, slug, "https://get.com")
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links/"+slug, nil)
+		req, _ := http.NewRequest("GET", "/links/"+slug, nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -121,7 +121,7 @@ func TestHTTP_GetLink(t *testing.T) {
 
 	t.Run("Not Found", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links/non-existent-slug", nil)
+		req, _ := http.NewRequest("GET", "/links/non-existent-slug", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -143,7 +143,7 @@ func TestHTTP_Redirect(t *testing.T) {
 		_ = repo.Create(ctx, slug, target)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/public/"+slug, nil)
+		req, _ := http.NewRequest("GET", "/redirect/"+slug, nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusFound, w.Code)
@@ -152,7 +152,7 @@ func TestHTTP_Redirect(t *testing.T) {
 
 	t.Run("Not Found", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/public/nope", nil)
+		req, _ := http.NewRequest("GET", "/redirect/nope", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -173,7 +173,7 @@ func TestHTTP_Redirect(t *testing.T) {
 		require.NoError(t, err)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/public/"+slug, nil)
+		req, _ := http.NewRequest("GET", "/redirect/"+slug, nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code) // Handler returns 404 for inactive
@@ -200,7 +200,7 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("PATCH", "/private/links/"+slug, bytes.NewBuffer(body))
+		req, _ := http.NewRequest("PATCH", "/links/"+slug, bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -222,7 +222,7 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("PATCH", "/private/links/"+slug, bytes.NewBuffer(body))
+		req, _ := http.NewRequest("PATCH", "/links/"+slug, bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -241,7 +241,7 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("PATCH", "/private/links/phantom", bytes.NewBuffer(body))
+		req, _ := http.NewRequest("PATCH", "/links/phantom", bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -258,7 +258,7 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("PATCH", "/private/links/"+slug, bytes.NewBuffer(body))
+		req, _ := http.NewRequest("PATCH", "/links/"+slug, bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -275,7 +275,7 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		body, _ := json.Marshal(reqBody)
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("PATCH", "/private/links/"+slug, bytes.NewBuffer(body))
+		req, _ := http.NewRequest("PATCH", "/links/"+slug, bytes.NewBuffer(body))
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
@@ -296,7 +296,7 @@ func TestHTTP_DeleteLink(t *testing.T) {
 		_ = repo.Create(ctx, slug, "http://bye.com")
 
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("DELETE", "/private/links/"+slug, nil)
+		req, _ := http.NewRequest("DELETE", "/links/"+slug, nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -307,7 +307,7 @@ func TestHTTP_DeleteLink(t *testing.T) {
 
 	t.Run("Not Found", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("DELETE", "/private/links/ghost", nil)
+		req, _ := http.NewRequest("DELETE", "/links/ghost", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
@@ -338,7 +338,7 @@ func TestHTTP_ListLinks(t *testing.T) {
 
 	t.Run("Default Sort (Created At Desc)", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links", nil)
+		req, _ := http.NewRequest("GET", "/links", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -364,7 +364,7 @@ func TestHTTP_ListLinks(t *testing.T) {
 
 	t.Run("Sort By Slug ASC", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links?sort_by=slug&sort_order=asc", nil)
+		req, _ := http.NewRequest("GET", "/links?sort_by=slug&sort_order=asc", nil)
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
@@ -388,7 +388,7 @@ func TestHTTP_ListLinks(t *testing.T) {
 	t.Run("Pagination", func(t *testing.T) {
 		// Just verify we get subset
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links?page=1&page_size=1", nil)
+		req, _ := http.NewRequest("GET", "/links?page=1&page_size=1", nil)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
 		var list []lhttp.LinkResponse
@@ -398,22 +398,39 @@ func TestHTTP_ListLinks(t *testing.T) {
 
 	t.Run("Invalid SortBy", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links?sort_by=hacking", nil)
+		req, _ := http.NewRequest("GET", "/links?sort_by=hacking", nil)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("Invalid Page (Min)", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links?page=0", nil)
+		req, _ := http.NewRequest("GET", "/links?page=0", nil)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 
 	t.Run("Invalid PageSize (Max)", func(t *testing.T) {
 		w := httptest.NewRecorder()
-		req, _ := http.NewRequest("GET", "/private/links?page_size=101", nil)
+		req, _ := http.NewRequest("GET", "/links?page_size=101", nil)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Keyword Validation", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/links?keyword=ab&page=1&page_size=20", nil)
+		r.ServeHTTP(w, req)
+		t.Logf("Status: %d, Body: %s", w.Code, w.Body.String())
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "keyword must be at least 3 characters")
+	})
+
+	t.Run("Search and Filter Params", func(t *testing.T) {
+		// Just ensure checking parsing works, repository logic is tested separately
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("GET", "/links?keyword=test&is_active=true", nil)
+		r.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusOK, w.Code)
 	})
 }

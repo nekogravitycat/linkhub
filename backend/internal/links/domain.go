@@ -17,5 +17,7 @@ type Link struct {
 
 type ListOptions struct {
 	request.ListParams
-	SortBy string
+	SortBy   string
+	Keyword  string
+	IsActive *bool
 }

@@ -54,10 +54,19 @@ func (h *Handler) List(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+	// DEBUG
+	// fmt.Printf("DEBUG REQ: %+v\n", req)
+
+	if err := req.Validate(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
 
 	opts := links.ListOptions{
 		ListParams: req.ListParams,
 		SortBy:     req.SortBy,
+		Keyword:    req.Keyword,
+		IsActive:   req.IsActive,
 	}
 
 	list, err := h.service.List(c.Request.Context(), opts)

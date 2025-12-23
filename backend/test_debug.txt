@@ -1,0 +1,244 @@
+2025/12/23 17:16:22 failed to load .env file: open .env: The system cannot find the file specified.
+=== RUN   TestHTTP_CreateLink
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_CreateLink/Success
+[GIN] 2025/12/23 - 17:16:22 | 201 |      3.6683ms |                 | POST     "/links"
+=== RUN   TestHTTP_CreateLink/Duplicate_Slug
+[GIN] 2025/12/23 - 17:16:22 | 409 |            0s |                 | POST     "/links"
+=== RUN   TestHTTP_CreateLink/Invalid_Payload
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | POST     "/links"
+=== RUN   TestHTTP_CreateLink/Invalid_URL
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | POST     "/links"
+--- PASS: TestHTTP_CreateLink (0.01s)
+    --- PASS: TestHTTP_CreateLink/Success (0.00s)
+    --- PASS: TestHTTP_CreateLink/Duplicate_Slug (0.00s)
+    --- PASS: TestHTTP_CreateLink/Invalid_Payload (0.00s)
+    --- PASS: TestHTTP_CreateLink/Invalid_URL (0.00s)
+=== RUN   TestHTTP_GetLink
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_GetLink/Success
+[GIN] 2025/12/23 - 17:16:22 | 200 |            0s |                 | GET      "/links/http-get-171622000000"
+=== RUN   TestHTTP_GetLink/Not_Found
+[GIN] 2025/12/23 - 17:16:22 | 404 |      1.5088ms |                 | GET      "/links/non-existent-slug"
+--- PASS: TestHTTP_GetLink (0.00s)
+    --- PASS: TestHTTP_GetLink/Success (0.00s)
+    --- PASS: TestHTTP_GetLink/Not_Found (0.00s)
+=== RUN   TestHTTP_Redirect
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_Redirect/Success
+[GIN] 2025/12/23 - 17:16:22 | 302 |       511.8µs |                 | GET      "/redirect/http-redir-171622000000"
+=== RUN   TestHTTP_Redirect/Not_Found
+[GIN] 2025/12/23 - 17:16:22 | 404 |            0s |                 | GET      "/redirect/nope"
+=== RUN   TestHTTP_Redirect/Inactive_Link
+[GIN] 2025/12/23 - 17:16:22 | 404 |      1.5145ms |                 | GET      "/redirect/http-inactive-171622000000"
+--- PASS: TestHTTP_Redirect (0.01s)
+    --- PASS: TestHTTP_Redirect/Success (0.00s)
+    --- PASS: TestHTTP_Redirect/Not_Found (0.00s)
+    --- PASS: TestHTTP_Redirect/Inactive_Link (0.01s)
+=== RUN   TestHTTP_UpdateLink
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_UpdateLink/Success_Full_Update
+[GIN] 2025/12/23 - 17:16:22 | 200 |      1.9277ms |                 | PATCH    "/links/http-update-171622000000"
+=== RUN   TestHTTP_UpdateLink/Success_Partial_Update_(IsActive_Only)
+[GIN] 2025/12/23 - 17:16:22 | 200 |      1.5353ms |                 | PATCH    "/links/http-partial-171622000000"
+=== RUN   TestHTTP_UpdateLink/Not_Found
+[GIN] 2025/12/23 - 17:16:22 | 404 |       569.3µs |                 | PATCH    "/links/phantom"
+=== RUN   TestHTTP_UpdateLink/Invalid_URL
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | PATCH    "/links/http-update-bad-171622000000"
+=== RUN   TestHTTP_UpdateLink/Empty_URL_in_Update
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | PATCH    "/links/http-update-empty-171622000000"
+--- PASS: TestHTTP_UpdateLink (0.01s)
+    --- PASS: TestHTTP_UpdateLink/Success_Full_Update (0.00s)
+    --- PASS: TestHTTP_UpdateLink/Success_Partial_Update_(IsActive_Only) (0.00s)
+    --- PASS: TestHTTP_UpdateLink/Not_Found (0.00s)
+    --- PASS: TestHTTP_UpdateLink/Invalid_URL (0.00s)
+    --- PASS: TestHTTP_UpdateLink/Empty_URL_in_Update (0.00s)
+=== RUN   TestHTTP_DeleteLink
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_DeleteLink/Success
+[GIN] 2025/12/23 - 17:16:22 | 200 |      1.1425ms |                 | DELETE   "/links/http-del-171622000000"
+=== RUN   TestHTTP_DeleteLink/Not_Found
+[GIN] 2025/12/23 - 17:16:22 | 404 |            0s |                 | DELETE   "/links/ghost"
+--- PASS: TestHTTP_DeleteLink (0.00s)
+    --- PASS: TestHTTP_DeleteLink/Success (0.00s)
+    --- PASS: TestHTTP_DeleteLink/Not_Found (0.00s)
+=== RUN   TestHTTP_ListLinks
+[GIN-debug] [WARNING] Creating an Engine instance with the Logger and Recovery middleware already attached.
+
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /redirect/:slug           --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Redirect-fm (3 handlers)
+[GIN-debug] GET    /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).List-fm (3 handlers)
+[GIN-debug] POST   /links                    --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Create-fm (3 handlers)
+[GIN-debug] GET    /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Get-fm (3 handlers)
+[GIN-debug] PATCH  /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Update-fm (3 handlers)
+[GIN-debug] DELETE /links/:slug              --> github.com/nekogravitycat/linkhub/internal/links/http.(*Handler).Delete-fm (3 handlers)
+=== RUN   TestHTTP_ListLinks/Default_Sort_(Created_At_Desc)
+[GIN] 2025/12/23 - 17:16:22 | 200 |        1.66ms |                 | GET      "/links"
+=== RUN   TestHTTP_ListLinks/Sort_By_Slug_ASC
+[GIN] 2025/12/23 - 17:16:22 | 200 |      1.2852ms |                 | GET      "/links?sort_by=slug&sort_order=asc"
+=== RUN   TestHTTP_ListLinks/Pagination
+[GIN] 2025/12/23 - 17:16:22 | 200 |         574µs |                 | GET      "/links?page=1&page_size=1"
+=== RUN   TestHTTP_ListLinks/Invalid_SortBy
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | GET      "/links?sort_by=hacking"
+=== RUN   TestHTTP_ListLinks/Invalid_Page_(Min)
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | GET      "/links?page=0"
+=== RUN   TestHTTP_ListLinks/Invalid_PageSize_(Max)
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | GET      "/links?page_size=101"
+=== RUN   TestHTTP_ListLinks/Keyword_Validation
+[GIN] 2025/12/23 - 17:16:22 | 400 |            0s |                 | GET      "/links?keyword=ab&page=1&page_size=20"
+    http_test.go:424: Status: 400, Body: {"error":"keyword must be at least 3 characters long"}
+=== RUN   TestHTTP_ListLinks/Search_and_Filter_Params
+[GIN] 2025/12/23 - 17:16:22 | 200 |         514µs |                 | GET      "/links?keyword=test&is_active=true"
+--- PASS: TestHTTP_ListLinks (0.01s)
+    --- PASS: TestHTTP_ListLinks/Default_Sort_(Created_At_Desc) (0.00s)
+    --- PASS: TestHTTP_ListLinks/Sort_By_Slug_ASC (0.00s)
+    --- PASS: TestHTTP_ListLinks/Pagination (0.00s)
+    --- PASS: TestHTTP_ListLinks/Invalid_SortBy (0.00s)
+    --- PASS: TestHTTP_ListLinks/Invalid_Page_(Min) (0.00s)
+    --- PASS: TestHTTP_ListLinks/Invalid_PageSize_(Max) (0.00s)
+    --- PASS: TestHTTP_ListLinks/Keyword_Validation (0.00s)
+    --- PASS: TestHTTP_ListLinks/Search_and_Filter_Params (0.00s)
+=== RUN   TestLinksRepository
+=== RUN   TestLinksRepository/Create_and_Get_Link
+=== RUN   TestLinksRepository/Update_Link
+=== RUN   TestLinksRepository/Delete_Link
+=== RUN   TestLinksRepository/List_Links
+=== RUN   TestLinksRepository/List_Links_with_Search_and_Filter
+=== RUN   TestLinksRepository/SQL_Escaping_and_Strict_Sorting
+    links_test.go:221: Sorting mismatch at index 0: esc-171622-10_0 > esc-171622-100%
+    links_test.go:227: [0] esc-171622-10_0
+    links_test.go:227: [1] esc-171622-100%
+    links_test.go:227: [2] esc-171622-normal
+    links_test.go:230: 
+        	Error Trace:	C:/Users/gravity/Documents/GitHub/linkhub/backend/tests/links_test.go:230
+        	Error:      	Should be true
+        	Test:       	TestLinksRepository/SQL_Escaping_and_Strict_Sorting
+        	Messages:   	Links should be sorted by slug ASC
+--- FAIL: TestLinksRepository (0.03s)
+    --- PASS: TestLinksRepository/Create_and_Get_Link (0.00s)
+    --- PASS: TestLinksRepository/Update_Link (0.00s)
+    --- PASS: TestLinksRepository/Delete_Link (0.00s)
+    --- PASS: TestLinksRepository/List_Links (0.01s)
+    --- PASS: TestLinksRepository/List_Links_with_Search_and_Filter (0.01s)
+    --- FAIL: TestLinksRepository/SQL_Escaping_and_Strict_Sorting (0.00s)
+=== RUN   TestValidateSlug
+=== RUN   TestValidateSlug/valid_lowercase
+=== RUN   TestValidateSlug/valid_uppercase
+=== RUN   TestValidateSlug/valid_mixed
+=== RUN   TestValidateSlug/valid_underscore
+=== RUN   TestValidateSlug/empty
+=== RUN   TestValidateSlug/invalid_char_space
+=== RUN   TestValidateSlug/invalid_char_special
+=== RUN   TestValidateSlug/invalid_char_slash
+=== RUN   TestValidateSlug/too_long
+=== RUN   TestValidateSlug/max_length
+--- PASS: TestValidateSlug (0.00s)
+    --- PASS: TestValidateSlug/valid_lowercase (0.00s)
+    --- PASS: TestValidateSlug/valid_uppercase (0.00s)
+    --- PASS: TestValidateSlug/valid_mixed (0.00s)
+    --- PASS: TestValidateSlug/valid_underscore (0.00s)
+    --- PASS: TestValidateSlug/empty (0.00s)
+    --- PASS: TestValidateSlug/invalid_char_space (0.00s)
+    --- PASS: TestValidateSlug/invalid_char_special (0.00s)
+    --- PASS: TestValidateSlug/invalid_char_slash (0.00s)
+    --- PASS: TestValidateSlug/too_long (0.00s)
+    --- PASS: TestValidateSlug/max_length (0.00s)
+=== RUN   TestCreateLinkRequest_Validate
+=== RUN   TestCreateLinkRequest_Validate/valid
+=== RUN   TestCreateLinkRequest_Validate/valid_no_slug
+=== RUN   TestCreateLinkRequest_Validate/missing_url
+=== RUN   TestCreateLinkRequest_Validate/invalid_slug
+=== RUN   TestCreateLinkRequest_Validate/url_too_long
+--- PASS: TestCreateLinkRequest_Validate (0.00s)
+    --- PASS: TestCreateLinkRequest_Validate/valid (0.00s)
+    --- PASS: TestCreateLinkRequest_Validate/valid_no_slug (0.00s)
+    --- PASS: TestCreateLinkRequest_Validate/missing_url (0.00s)
+    --- PASS: TestCreateLinkRequest_Validate/invalid_slug (0.00s)
+    --- PASS: TestCreateLinkRequest_Validate/url_too_long (0.00s)
+=== RUN   TestUpdateLinkRequest_Validate
+=== RUN   TestUpdateLinkRequest_Validate/valid
+=== RUN   TestUpdateLinkRequest_Validate/valid_partial_(no_url)
+=== RUN   TestUpdateLinkRequest_Validate/empty_url
+=== RUN   TestUpdateLinkRequest_Validate/url_too_long
+--- PASS: TestUpdateLinkRequest_Validate (0.00s)
+    --- PASS: TestUpdateLinkRequest_Validate/valid (0.00s)
+    --- PASS: TestUpdateLinkRequest_Validate/valid_partial_(no_url) (0.00s)
+    --- PASS: TestUpdateLinkRequest_Validate/empty_url (0.00s)
+    --- PASS: TestUpdateLinkRequest_Validate/url_too_long (0.00s)
+=== RUN   TestListRequest_Validate
+=== RUN   TestListRequest_Validate/valid_keyword
+=== RUN   TestListRequest_Validate/valid_keyword_with_spaces
+=== RUN   TestListRequest_Validate/keyword_too_short
+=== RUN   TestListRequest_Validate/keyword_too_short_after_trim
+=== RUN   TestListRequest_Validate/keyword_too_long
+=== RUN   TestListRequest_Validate/keyword_with_control_chars
+=== RUN   TestListRequest_Validate/keyword_short_after_sanitization
+--- PASS: TestListRequest_Validate (0.00s)
+    --- PASS: TestListRequest_Validate/valid_keyword (0.00s)
+    --- PASS: TestListRequest_Validate/valid_keyword_with_spaces (0.00s)
+    --- PASS: TestListRequest_Validate/keyword_too_short (0.00s)
+    --- PASS: TestListRequest_Validate/keyword_too_short_after_trim (0.00s)
+    --- PASS: TestListRequest_Validate/keyword_too_long (0.00s)
+    --- PASS: TestListRequest_Validate/keyword_with_control_chars (0.00s)
+    --- PASS: TestListRequest_Validate/keyword_short_after_sanitization (0.00s)
+FAIL
+FAIL	github.com/nekogravitycat/linkhub/tests	0.188s
+FAIL

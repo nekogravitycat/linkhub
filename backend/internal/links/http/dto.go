@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/nekogravitycat/linkhub/internal/pkg/request"
@@ -24,7 +25,32 @@ type UpdateLinkRequest struct {
 
 type ListRequest struct {
 	request.ListParams
-	SortBy string `form:"sort_by" binding:"omitempty,oneof=created_at updated_at slug id"`
+	SortBy   string `form:"sort_by" binding:"omitempty,oneof=created_at updated_at slug id"`
+	Keyword  string `form:"keyword"`
+	IsActive *bool  `form:"is_active"`
+}
+
+func (r *ListRequest) Validate() error {
+	// Sanitization: Trim whitespace
+	r.Keyword = strings.TrimSpace(r.Keyword)
+
+	// Sanitization: Remove non-printable ASCII characters (0-31)
+	r.Keyword = strings.Map(func(r rune) rune {
+		if r < 32 {
+			return -1
+		}
+		return r
+	}, r.Keyword)
+
+	if r.Keyword != "" {
+		if len(r.Keyword) < 3 {
+			return errors.New("keyword must be at least 3 characters long")
+		}
+		if len(r.Keyword) > 64 {
+			return errors.New("keyword is too long (max 64 chars)")
+		}
+	}
+	return nil
 }
 
 type LinkResponse struct {

@@ -145,3 +145,80 @@ func TestUpdateLinkRequest_Validate(t *testing.T) {
 		})
 	}
 }
+
+func TestListRequest_Validate(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     lhttp.ListRequest
+		wantErr bool
+	}{
+		{
+			name: "valid keyword",
+			req: lhttp.ListRequest{
+				Keyword: "valid",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid keyword with spaces",
+			req: lhttp.ListRequest{
+				Keyword: "  valid  ",
+			},
+			wantErr: false,
+		},
+		{
+			name: "keyword too short",
+			req: lhttp.ListRequest{
+				Keyword: "hi",
+			},
+			wantErr: true,
+		},
+		{
+			name: "keyword too short after trim",
+			req: lhttp.ListRequest{
+				Keyword: "  hi  ",
+			},
+			wantErr: true,
+		},
+		{
+			name: "keyword too long",
+			req: lhttp.ListRequest{
+				Keyword: strings.Repeat("a", 65),
+			},
+			wantErr: true,
+		},
+		{
+			name: "keyword with control chars",
+			req: lhttp.ListRequest{
+				Keyword: "val\x00id",
+			},
+			wantErr: false, // Should be sanitized to "valid" (5 chars)
+		},
+		{
+			name: "keyword short after sanitization",
+			req: lhttp.ListRequest{
+				Keyword: "ab\x00",
+			},
+			wantErr: true, // "ab" < 3 chars
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// We work on a copy to test side effects (sanitization)
+			req := tt.req
+			err := req.Validate()
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ListRequest.Validate() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			// Verify sanitization
+			if !tt.wantErr && strings.Contains(req.Keyword, "\x00") {
+				t.Errorf("ListRequest.Validate() did not sanitize control characters")
+			}
+			if !tt.wantErr && strings.TrimSpace(req.Keyword) != req.Keyword {
+				t.Errorf("ListRequest.Validate() did not trim spaces")
+			}
+		})
+	}
+}

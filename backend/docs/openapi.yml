@@ -4,7 +4,7 @@ info:
   description: API documentation for the LinkHub link shortener service.
   version: 1.0.0
 servers:
-  - url: http://localhost:8001
+  - url: http://localhost:8080
     description: Local API Server
 
 paths:
@@ -64,6 +64,17 @@ paths:
             type: string
             enum: [asc, desc, ASC, DESC]
             default: DESC
+        - name: keyword
+          in: query
+          description: Search keyword for filtering by slug or URL.
+          schema:
+            type: string
+            minLength: 3
+        - name: is_active
+          in: query
+          description: Filter by active status (true/false).
+          schema:
+            type: boolean
       responses:
         "200":
           description: A list of links.

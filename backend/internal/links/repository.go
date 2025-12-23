@@ -3,6 +3,8 @@ package links
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -132,14 +134,44 @@ func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, error
 	query := r.sb.Select("id", "slug", "url", "is_active", "created_at", "updated_at").
 		From("links")
 
-	if opts.SortBy != "" {
-		if opts.SortOrder == "" {
-			opts.SortOrder = "DESC"
-		}
-		query = query.OrderBy(opts.SortBy + " " + opts.SortOrder)
-	} else {
-		query = query.OrderBy("created_at DESC")
+	if opts.IsActive != nil {
+		query = query.Where(sq.Eq{"is_active": *opts.IsActive})
 	}
+
+	if opts.Keyword != "" {
+		// Escape special characters for ILIKE
+		escaper := strings.NewReplacer(
+			`\`, `\\`,
+			`%`, `\%`,
+			`_`, `\_`,
+		)
+		cleanKeyword := escaper.Replace(opts.Keyword)
+		pattern := "%" + cleanKeyword + "%"
+		query = query.Where(sq.Or{
+			sq.ILike{"slug": pattern},
+			sq.ILike{"url": pattern},
+		})
+	}
+
+	// Strict Sorting Validation
+	sortMap := map[string]string{
+		"created_at": "created_at",
+		"updated_at": "updated_at",
+		"slug":       "slug",
+		"id":         "id",
+	}
+
+	sortByColumn, ok := sortMap[opts.SortBy]
+	if !ok {
+		sortByColumn = "created_at"
+	}
+
+	sortDirection := "DESC"
+	if strings.ToUpper(opts.SortOrder) == "ASC" {
+		sortDirection = "ASC"
+	}
+
+	query = query.OrderBy(fmt.Sprintf("%s %s", sortByColumn, sortDirection))
 
 	if opts.Page > 0 && opts.PageSize > 0 {
 		offset := uint64((opts.Page - 1) * opts.PageSize)

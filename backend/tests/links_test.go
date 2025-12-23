@@ -2,10 +2,12 @@ package tests
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/nekogravitycat/linkhub/internal/links"
+	"github.com/nekogravitycat/linkhub/internal/pkg/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -101,5 +103,133 @@ func TestLinksRepository(t *testing.T) {
 			}
 		}
 		assert.True(t, foundSlug2, "Did not find slug %s in list", slug2)
+
+	})
+
+	t.Run("List Links with Search and Filter", func(t *testing.T) {
+		// Clean slate for this test potentially, or just use distinct prefixes
+		p := "search-" + time.Now().Format("150405")
+
+		// 1. Active, matches keyword
+		_ = repo.Create(ctx, p+"-apple", "http://apple.com")
+
+		// 2. Inactive, matches keyword
+		_ = repo.Create(ctx, p+"-banana", "http://banana.com")
+		l, _ := repo.GetBySlug(ctx, p+"-banana")
+		l.IsActive = false
+		_ = repo.Update(ctx, l)
+
+		// 3. Active, no match
+		_ = repo.Create(ctx, p+"-carrot", "http://carrot.com")
+
+		// Test Keyword Search (should find apple and banana)
+		list, err := repo.List(ctx, links.ListOptions{
+			Keyword: p, // Should match all with prefix
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 3, len(list))
+
+		list, err = repo.List(ctx, links.ListOptions{
+			Keyword: "apple",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(list))
+		assert.Equal(t, p+"-apple", list[0].Slug)
+
+		// Test IsActive Filter (active only)
+		active := true
+		list, err = repo.List(ctx, links.ListOptions{
+			Keyword:  p,
+			IsActive: &active,
+		})
+		require.NoError(t, err)
+		// Should find apple and carrot
+		assert.Equal(t, 2, len(list))
+
+		// Test IsActive Filter (inactive only)
+		inactive := false
+		list, err = repo.List(ctx, links.ListOptions{
+			Keyword:  p,
+			IsActive: &inactive,
+		})
+		require.NoError(t, err)
+		// Should find banana only
+		assert.Equal(t, 1, len(list))
+		assert.Equal(t, p+"-banana", list[0].Slug)
+
+		// Test Combo (inactive + keyword "banana")
+		list, err = repo.List(ctx, links.ListOptions{
+			Keyword:  "banana",
+			IsActive: &inactive,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, 1, len(list))
+	})
+
+	t.Run("SQL Escaping and Strict Sorting", func(t *testing.T) {
+		p := "esc-" + time.Now().Format("150405")
+		_ = repo.Create(ctx, p+"-100%", "http://100.com")
+		_ = repo.Create(ctx, p+"-10_0", "http://10_0.com")
+		_ = repo.Create(ctx, p+"-normal", "http://normal.com")
+
+		// Search for "%" literal
+		// Should match ONLY the link with % in its slug
+		listPercent, err := repo.List(ctx, links.ListOptions{Keyword: "%"})
+		require.NoError(t, err)
+
+		foundPercent := false
+		for _, l := range listPercent {
+			if l.Slug == p+"-100%" {
+				foundPercent = true
+			}
+			if l.Slug == p+"-normal" {
+				t.Errorf("Should not have matched normal link when searching for '%%'")
+			}
+		}
+		assert.True(t, foundPercent, "Should have found link with '%%'")
+
+		// Search for "_" literal
+		// Should match ONLY the link with _ in its slug
+		listUnderscore, err := repo.List(ctx, links.ListOptions{Keyword: "_"})
+		require.NoError(t, err)
+
+		foundUnderscore := false
+		for _, l := range listUnderscore {
+			if l.Slug == p+"-10_0" {
+				foundUnderscore = true
+			}
+			if l.Slug == p+"-normal" {
+				t.Errorf("Should not have matched normal link when searching for '_'")
+			}
+		}
+		assert.True(t, foundUnderscore, "Should have found link with '_'")
+
+		// Strict Sorting Check
+		// Create known sortable items
+		_ = repo.Create(ctx, p+"-aaa", "http://aaa.com")
+		_ = repo.Create(ctx, p+"-bbb", "http://bbb.com")
+		_ = repo.Create(ctx, p+"-ccc", "http://ccc.com")
+
+		listSort, err := repo.List(ctx, links.ListOptions{
+			Keyword: p + "-",
+			SortBy:  "slug",
+			ListParams: request.ListParams{
+				SortOrder: "ASC",
+			},
+		})
+		require.NoError(t, err)
+
+		// We expect at least the 3 new ones
+		var sortedSlugs []string
+		for _, l := range listSort {
+			if strings.Contains(l.Slug, p+"-aaa") || strings.Contains(l.Slug, p+"-bbb") || strings.Contains(l.Slug, p+"-ccc") {
+				sortedSlugs = append(sortedSlugs, l.Slug)
+			}
+		}
+
+		require.Equal(t, 3, len(sortedSlugs))
+		assert.Equal(t, p+"-aaa", sortedSlugs[0])
+		assert.Equal(t, p+"-bbb", sortedSlugs[1])
+		assert.Equal(t, p+"-ccc", sortedSlugs[2])
 	})
 }
