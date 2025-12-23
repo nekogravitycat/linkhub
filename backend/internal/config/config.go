@@ -32,7 +32,10 @@ func Load() (*Config, error) {
 	allowOriginsRaw := getEnv("ALLOW_ORIGINS", "")
 	var allowOrigins []string
 	if allowOriginsRaw != "" {
-		allowOrigins = strings.Split(allowOriginsRaw, ",")
+		origins := strings.SplitSeq(allowOriginsRaw, ",")
+		for origin := range origins {
+			allowOrigins = append(allowOrigins, strings.TrimSpace(origin))
+		}
 	}
 
 	return &Config{

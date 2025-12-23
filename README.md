@@ -12,7 +12,7 @@ LinkHub is a modern, high-performance URL shortener service featuring a Go (Gola
 
 ## Architecture
 
-- **Backend**: Go (Gin/Chi or similar standard library based), PostgreSQL, Nginx.
+- **Backend**: Go (Gin), PostgreSQL, Nginx.
 - **Frontend**: Vue 3, Vite, Pinia, Tailwind CSS.
 
 ## Deployment

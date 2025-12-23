@@ -1,10 +1,6 @@
 package api
 
 import (
-	"slices"
-	"strings"
-	"time"
-
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/nekogravitycat/linkhub/internal/config"
@@ -18,30 +14,18 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 	r := gin.Default()
 
 	// CORS Config
-	corsConfig := cors.Config{
-		AllowMethods:     []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
+	corsConfig := cors.DefaultConfig()
+
+	if cfg.IsProduction {
+		// Production: Strict mode, only allow exact domain match
+		corsConfig.AllowOrigins = cfg.AllowOrigins
+	} else {
+		// Development: Allow all origins
+		corsConfig.AllowAllOrigins = true
 	}
 
-	if !cfg.IsProduction {
-		corsConfig.AllowOriginFunc = func(origin string) bool {
-			// Check if it matches allowed origins from env
-			if slices.Contains(cfg.AllowOrigins, origin) {
-				return true
-			}
-			// Check for localhost (any port)
-			// Matches http://localhost, https://localhost, http://localhost:PORT, https://localhost:PORT
-			return origin == "http://localhost" ||
-				origin == "https://localhost" ||
-				strings.HasPrefix(origin, "http://localhost:") ||
-				strings.HasPrefix(origin, "https://localhost:")
-		}
-	} else {
-		corsConfig.AllowOrigins = cfg.AllowOrigins
-	}
+	corsConfig.AllowMethods = []string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}
+	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Authorization"}
 
 	r.Use(cors.New(corsConfig))
 
