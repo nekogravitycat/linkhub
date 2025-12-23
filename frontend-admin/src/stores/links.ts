@@ -1,6 +1,6 @@
+import api from "@/lib/api"
 import { defineStore } from "pinia"
 import { ref } from "vue"
-import api from "@/lib/api"
 
 export interface Link {
   id: number
@@ -38,29 +38,11 @@ export const useLinksStore = defineStore("links", () => {
   }
 
   const createLink = async (slug: string, url: string) => {
-    loading.value = true
-    error.value = null
-    try {
-      await api.post("/links", { slug, url })
-    } catch (err: any) {
-      error.value = err.message || "Failed to create link"
-      throw err
-    } finally {
-      loading.value = false
-    }
+    await api.post("/links", { slug, url })
   }
 
   const updateLink = async (slug: string, data: { url?: string; is_active?: boolean }) => {
-    loading.value = true
-    error.value = null
-    try {
-      await api.patch(`/links/${slug}`, data)
-    } catch (err: any) {
-      error.value = err.message || "Failed to update link"
-      throw err
-    } finally {
-      loading.value = false
-    }
+    await api.patch(`/links/${slug}`, data)
   }
 
   const deleteLink = async (slug: string) => {

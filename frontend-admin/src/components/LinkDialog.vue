@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, watch, computed } from "vue"
-import { toast } from "vue-sonner"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { useLinksStore, type Link } from "@/stores/links"
+import { type Link, useLinksStore } from "@/stores/links"
+import { computed, ref, watch } from "vue"
+import { toast } from "vue-sonner"
 
 const props = defineProps<{
   open: boolean

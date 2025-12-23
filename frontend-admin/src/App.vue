@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import "vue-sonner/style.css"
-import { onMounted } from "vue"
 import { Toaster } from "@/components/ui/sonner"
+import { onMounted } from "vue"
+import "vue-sonner/style.css"
 
 onMounted(() => {
   document.documentElement.classList.add("dark")

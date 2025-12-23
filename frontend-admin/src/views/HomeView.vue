@@ -1,20 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue"
-import { storeToRefs } from "pinia"
-import { useLinksStore, type Link } from "@/stores/links"
 import LinkDialog from "@/components/LinkDialog.vue"
-import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Plus, Copy, Pencil, Trash2, ExternalLink, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-vue-next"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,6 +10,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { type Link, useLinksStore } from "@/stores/links"
+import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-vue-next"
+import { storeToRefs } from "pinia"
+import { onMounted, ref } from "vue"
 import { toast } from "vue-sonner"
 
 const linksStore = useLinksStore()
@@ -35,7 +28,7 @@ const selectedLink = ref<Link | null>(null)
 const isDeleteDialogOpen = ref(false)
 const linkToDelete = ref<Link | null>(null)
 
-const BASE_SHORT_URL = "https://t.gravitycat.tw"
+const BASE_SHORT_URL = import.meta.env.VITE_BASE_SHORT_URL || "https://example.com"
 
 const sortBy = ref<"created_at" | "updated_at" | "slug">("created_at")
 const sortOrder = ref<"asc" | "desc">("desc")
