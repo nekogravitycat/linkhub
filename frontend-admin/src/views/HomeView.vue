@@ -107,13 +107,19 @@ onMounted(() => {
 })
 
 const openCreateDialog = () => {
-  selectedLink.value = null
-  isDialogOpen.value = true
+  // delay 5ms to prevent keyboard showing up on iOS devices
+  setTimeout(() => {
+    selectedLink.value = null
+    isDialogOpen.value = true
+  }, 5)
 }
 
 const openEditDialog = (link: Link) => {
-  selectedLink.value = link
-  isDialogOpen.value = true
+  // delay 5ms to prevent keyboard showing up on iOS devices
+  setTimeout(() => {
+    selectedLink.value = link
+    isDialogOpen.value = true
+  }, 5)
 }
 
 const copyToClipboard = async (slug: string) => {
@@ -176,6 +182,7 @@ const formatDate = (dateStr: string) => {
         <Input
           v-model="keyword"
           type="search"
+          enterkeyhint="search"
           placeholder="Search by slug or URL..."
           class="pl-8"
           :disabled="isLoading"

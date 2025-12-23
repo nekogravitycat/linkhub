@@ -9,7 +9,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-background font-sans antialiased text-foreground">
+  <div class="min-h-dvh bg-background font-sans antialiased text-foreground">
     <RouterView />
     <Toaster />
   </div>

@@ -41,7 +41,10 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 			if strings.HasPrefix(origin, "http://127.0.0.1") || strings.HasPrefix(origin, "https://127.0.0.1") {
 				return true
 			}
-
+			// Allow 192.168.*.* with ANY port
+			if strings.HasPrefix(origin, "http://192.168.") || strings.HasPrefix(origin, "https://192.168.") {
+				return true
+			}
 			return false
 		}
 	}
