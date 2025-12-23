@@ -69,12 +69,29 @@ func (h *Handler) List(c *gin.Context) {
 		IsActive:   req.IsActive,
 	}
 
-	list, err := h.service.List(c.Request.Context(), opts)
+	list, total, err := h.service.List(c.Request.Context(), opts)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, list)
+
+	response := ListResponse{
+		Links: make([]*LinkResponse, 0, len(list)),
+		Total: total,
+	}
+
+	for _, link := range list {
+		response.Links = append(response.Links, &LinkResponse{
+			ID:        link.ID,
+			Slug:      link.Slug,
+			URL:       link.URL,
+			IsActive:  link.IsActive,
+			CreatedAt: link.CreatedAt,
+			UpdatedAt: link.UpdatedAt,
+		})
+	}
+
+	c.JSON(http.StatusOK, response)
 }
 
 // Private: Get

@@ -342,16 +342,16 @@ func TestHTTP_ListLinks(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		var list []lhttp.LinkResponse
-		err := json.Unmarshal(w.Body.Bytes(), &list)
+		var resp lhttp.ListResponse
+		err := json.Unmarshal(w.Body.Bytes(), &resp)
 		require.NoError(t, err)
-		assert.NotEmpty(t, list)
+		assert.NotEmpty(t, resp.Links)
 		// Check that we find our slugs
 		// Since other tests might add links, we filter to ours
 		var filtered []lhttp.LinkResponse
-		for _, l := range list {
+		for _, l := range resp.Links {
 			if l.Slug == slugA || l.Slug == slugB || l.Slug == slugC {
-				filtered = append(filtered, l)
+				filtered = append(filtered, *l)
 			}
 		}
 		// Expect B, C, A order (latest first)
@@ -368,13 +368,13 @@ func TestHTTP_ListLinks(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-		var list []lhttp.LinkResponse
-		_ = json.Unmarshal(w.Body.Bytes(), &list)
+		var resp lhttp.ListResponse
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
 
 		var filtered []lhttp.LinkResponse
-		for _, l := range list {
+		for _, l := range resp.Links {
 			if l.Slug == slugA || l.Slug == slugB || l.Slug == slugC {
-				filtered = append(filtered, l)
+				filtered = append(filtered, *l)
 			}
 		}
 
@@ -391,9 +391,10 @@ func TestHTTP_ListLinks(t *testing.T) {
 		req, _ := http.NewRequest("GET", "/links?page=1&page_size=1", nil)
 		r.ServeHTTP(w, req)
 		assert.Equal(t, http.StatusOK, w.Code)
-		var list []lhttp.LinkResponse
-		_ = json.Unmarshal(w.Body.Bytes(), &list)
-		assert.Equal(t, 1, len(list))
+		var resp lhttp.ListResponse
+		_ = json.Unmarshal(w.Body.Bytes(), &resp)
+		assert.Equal(t, 1, len(resp.Links))
+		assert.GreaterOrEqual(t, resp.Total, int64(3))
 	})
 
 	t.Run("Invalid SortBy", func(t *testing.T) {

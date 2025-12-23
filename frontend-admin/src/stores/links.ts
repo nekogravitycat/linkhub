@@ -13,6 +13,7 @@ export interface Link {
 
 export const useLinksStore = defineStore("links", () => {
   const links = ref<Link[]>([])
+  const total = ref(0)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
@@ -30,7 +31,14 @@ export const useLinksStore = defineStore("links", () => {
     error.value = null
     try {
       const response = await api.get("/links", { params })
-      links.value = response.data || []
+      // Handle both old array format (fallback) and new object format
+      if (Array.isArray(response.data)) {
+        links.value = response.data
+        total.value = response.data.length // Best guess for old format
+      } else {
+        links.value = response.data.links || []
+        total.value = response.data.total || 0
+      }
     } catch (err: any) {
       error.value = err.message || "Failed to fetch links"
       console.error(err)
@@ -62,6 +70,7 @@ export const useLinksStore = defineStore("links", () => {
 
   return {
     links,
+    total,
     loading,
     error,
     fetchLinks,

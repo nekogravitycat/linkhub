@@ -62,6 +62,11 @@ type LinkResponse struct {
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
+type ListResponse struct {
+	Links []*LinkResponse `json:"links"`
+	Total int64           `json:"total"`
+}
+
 func (r *CreateLinkRequest) Validate() error {
 	if r.URL == "" {
 		return errors.New("url is required")

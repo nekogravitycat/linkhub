@@ -89,10 +89,11 @@ func TestLinksRepository(t *testing.T) {
 		time.Sleep(time.Millisecond * 10)
 		require.NoError(t, repo.Create(ctx, slug2, "http://2.com"))
 
-		list, err := repo.List(ctx, links.ListOptions{})
+		list, total, err := repo.List(ctx, links.ListOptions{})
 		require.NoError(t, err)
 
 		assert.GreaterOrEqual(t, len(list), 2)
+		assert.Equal(t, int64(len(list)), total)
 
 		// Check if slug2 exists in list
 		foundSlug2 := false
@@ -123,13 +124,14 @@ func TestLinksRepository(t *testing.T) {
 		_ = repo.Create(ctx, p+"-carrot", "http://carrot.com")
 
 		// Test Keyword Search (should find apple and banana)
-		list, err := repo.List(ctx, links.ListOptions{
+		list, total, err := repo.List(ctx, links.ListOptions{
 			Keyword: p, // Should match all with prefix
 		})
 		require.NoError(t, err)
 		assert.Equal(t, 3, len(list))
+		assert.Equal(t, int64(3), total)
 
-		list, err = repo.List(ctx, links.ListOptions{
+		list, total, err = repo.List(ctx, links.ListOptions{
 			Keyword: "apple",
 		})
 		require.NoError(t, err)
@@ -138,7 +140,7 @@ func TestLinksRepository(t *testing.T) {
 
 		// Test IsActive Filter (active only)
 		active := true
-		list, err = repo.List(ctx, links.ListOptions{
+		list, total, err = repo.List(ctx, links.ListOptions{
 			Keyword:  p,
 			IsActive: &active,
 		})
@@ -148,7 +150,7 @@ func TestLinksRepository(t *testing.T) {
 
 		// Test IsActive Filter (inactive only)
 		inactive := false
-		list, err = repo.List(ctx, links.ListOptions{
+		list, total, err = repo.List(ctx, links.ListOptions{
 			Keyword:  p,
 			IsActive: &inactive,
 		})
@@ -158,7 +160,7 @@ func TestLinksRepository(t *testing.T) {
 		assert.Equal(t, p+"-banana", list[0].Slug)
 
 		// Test Combo (inactive + keyword "banana")
-		list, err = repo.List(ctx, links.ListOptions{
+		list, total, err = repo.List(ctx, links.ListOptions{
 			Keyword:  "banana",
 			IsActive: &inactive,
 		})
@@ -174,7 +176,7 @@ func TestLinksRepository(t *testing.T) {
 
 		// Search for "%" literal
 		// Should match ONLY the link with % in its slug
-		listPercent, err := repo.List(ctx, links.ListOptions{Keyword: "%"})
+		listPercent, _, err := repo.List(ctx, links.ListOptions{Keyword: "%"})
 		require.NoError(t, err)
 
 		foundPercent := false
@@ -190,7 +192,7 @@ func TestLinksRepository(t *testing.T) {
 
 		// Search for "_" literal
 		// Should match ONLY the link with _ in its slug
-		listUnderscore, err := repo.List(ctx, links.ListOptions{Keyword: "_"})
+		listUnderscore, _, err := repo.List(ctx, links.ListOptions{Keyword: "_"})
 		require.NoError(t, err)
 
 		foundUnderscore := false
@@ -210,7 +212,7 @@ func TestLinksRepository(t *testing.T) {
 		_ = repo.Create(ctx, p+"-bbb", "http://bbb.com")
 		_ = repo.Create(ctx, p+"-ccc", "http://ccc.com")
 
-		listSort, err := repo.List(ctx, links.ListOptions{
+		listSort, _, err := repo.List(ctx, links.ListOptions{
 			Keyword: p + "-",
 			SortBy:  "slug",
 			ListParams: request.ListParams{

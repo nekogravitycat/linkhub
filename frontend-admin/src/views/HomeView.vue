@@ -17,13 +17,30 @@ import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { type Link, useLinksStore } from "@/stores/links"
 import { useDebounceFn } from "@vueuse/core"
-import { ArrowDown, ArrowUp, ArrowUpDown, Copy, ExternalLink, Filter, MoreHorizontal, Pencil, Plus, Search, Trash2 } from "lucide-vue-next"
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  Copy,
+  ExternalLink,
+  Filter,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Search,
+  Trash2,
+} from "lucide-vue-next"
 import { storeToRefs } from "pinia"
-import { onMounted, ref, watch } from "vue"
+import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
 
 const linksStore = useLinksStore()
-const { links, loading: tableLoading, error } = storeToRefs(linksStore)
+const { links, total, loading: tableLoading, error } = storeToRefs(linksStore)
 
 const isDialogOpen = ref(false)
 const selectedLink = ref<Link | null>(null)
@@ -35,10 +52,41 @@ const BASE_SHORT_URL = import.meta.env.VITE_SHORT_BASE_URL || "https://example.c
 const sortBy = ref<"created_at" | "updated_at" | "slug">("created_at")
 const sortOrder = ref<"asc" | "desc">("desc")
 const page = ref(1)
-const pageSize = ref(20)
+const pageSize = ref(10)
 const keyword = ref("")
 const filterStatus = ref<"all" | "active" | "inactive">("all")
 const isLoading = ref(false)
+
+const totalPages = computed(() => Math.ceil(total.value / pageSize.value))
+const startItem = computed(() => (total.value === 0 ? 0 : (page.value - 1) * pageSize.value + 1))
+const endItem = computed(() => Math.min(page.value * pageSize.value, total.value))
+
+const handlePageChange = (newPage: number) => {
+  if (newPage < 1 || newPage > totalPages.value || isLoading.value) return
+  page.value = newPage
+  fetchData()
+}
+
+const handlePageSizeChange = (size: number) => {
+  pageSize.value = size
+  page.value = 1
+  fetchData()
+}
+
+const handleJumpToPage = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  let newPage = parseInt(target.value)
+  if (isNaN(newPage)) newPage = 1
+  if (newPage < 1) newPage = 1
+  if (newPage > totalPages.value) newPage = totalPages.value
+
+  // Force update input value if auto-corrected
+  target.value = newPage.toString()
+
+  if (newPage !== page.value) {
+    handlePageChange(newPage)
+  }
+}
 
 const handleSearch = useDebounceFn(async () => {
   if (isLoading.value) return
@@ -311,6 +359,63 @@ const formatDate = (dateStr: string) => {
           </TableRow>
         </TableBody>
       </Table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="flex items-center justify-between px-2 py-4">
+      <div class="flex flex-1 items-center gap-4 text-sm text-muted-foreground">
+        <div class="flex items-center gap-2">
+          <span>Rows per page</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger as-child>
+              <Button variant="outline" size="sm" class="h-8 gap-1">
+                {{ pageSize }}
+                <ChevronDown class="h-3 w-3 opacity-50" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start">
+              <DropdownMenuItem v-for="size in [10, 20, 50, 100]" :key="size" @click="handlePageSizeChange(size)">
+                {{ size }}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <div class="hidden sm:block">Showing {{ startItem }} to {{ endItem }} of {{ total }} entries</div>
+      </div>
+      <div class="flex items-center space-x-2">
+        <Button variant="outline" class="hidden h-8 w-8 p-0 lg:flex" :disabled="page === 1 || isLoading" @click="handlePageChange(1)">
+          <span class="sr-only">Go to first page</span>
+          <ChevronsLeft class="h-4 w-4" />
+        </Button>
+        <Button variant="outline" class="h-8 w-8 p-0" :disabled="page === 1 || isLoading" @click="handlePageChange(page - 1)">
+          <span class="sr-only">Go to previous page</span>
+          <ChevronLeft class="h-4 w-4" />
+        </Button>
+        <div class="flex items-center justify-center text-sm font-medium">
+          <span class="mr-2">Page</span>
+          <Input
+            :model-value="page"
+            class="h-8 w-12 text-center p-0"
+            @change="handleJumpToPage"
+            @keydown.enter="handleJumpToPage"
+            :disabled="isLoading"
+          />
+          <span class="ml-2">of {{ totalPages }}</span>
+        </div>
+        <Button variant="outline" class="h-8 w-8 p-0" :disabled="page >= totalPages || isLoading" @click="handlePageChange(page + 1)">
+          <span class="sr-only">Go to next page</span>
+          <ChevronRight class="h-4 w-4" />
+        </Button>
+        <Button
+          variant="outline"
+          class="hidden h-8 w-8 p-0 lg:flex"
+          :disabled="page >= totalPages || isLoading"
+          @click="handlePageChange(totalPages)"
+        >
+          <span class="sr-only">Go to last page</span>
+          <ChevronsRight class="h-4 w-4" />
+        </Button>
+      </div>
     </div>
 
     <LinkDialog v-model:open="isDialogOpen" :link-to-edit="selectedLink" @saved="fetchData()" />

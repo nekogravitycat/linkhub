@@ -13,7 +13,7 @@ var (
 type Service interface {
 	Create(ctx context.Context, slug, url string) error
 	Get(ctx context.Context, slug string) (*Link, error)
-	List(ctx context.Context, opts ListOptions) ([]*Link, error)
+	List(ctx context.Context, opts ListOptions) ([]*Link, int64, error)
 	Update(ctx context.Context, slug string, url *string, isActive *bool) error
 	Delete(ctx context.Context, slug string) error
 }
@@ -45,7 +45,7 @@ func (s *service) Get(ctx context.Context, slug string) (*Link, error) {
 	return s.repo.GetBySlug(ctx, slug)
 }
 
-func (s *service) List(ctx context.Context, opts ListOptions) ([]*Link, error) {
+func (s *service) List(ctx context.Context, opts ListOptions) ([]*Link, int64, error) {
 	return s.repo.List(ctx, opts)
 }
 

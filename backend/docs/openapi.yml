@@ -81,9 +81,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Link"
+                $ref: "#/components/schemas/ListLinksResponse"
         "500":
           description: Internal server error.
 
@@ -243,3 +241,15 @@ components:
           type: boolean
           description: Activation status of the link.
           example: false
+
+    ListLinksResponse:
+      type: object
+      properties:
+        links:
+          type: array
+          items:
+            $ref: "#/components/schemas/Link"
+        total:
+          type: integer
+          format: int64
+          example: 100

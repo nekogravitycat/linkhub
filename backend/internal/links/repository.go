@@ -21,7 +21,7 @@ type Repository interface {
 	GetBySlug(ctx context.Context, slug string) (*Link, error)
 	Update(ctx context.Context, link *Link) error
 	Delete(ctx context.Context, slug string) error
-	List(ctx context.Context, opts ListOptions) ([]*Link, error)
+	List(ctx context.Context, opts ListOptions) ([]*Link, int64, error)
 }
 
 type repository struct {
@@ -130,12 +130,12 @@ func (r *repository) Delete(ctx context.Context, slug string) error {
 	return nil
 }
 
-func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, error) {
-	query := r.sb.Select("id", "slug", "url", "is_active", "created_at", "updated_at").
+func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, int64, error) {
+	baseQuery := r.sb.Select("id", "slug", "url", "is_active", "created_at", "updated_at").
 		From("links")
 
 	if opts.IsActive != nil {
-		query = query.Where(sq.Eq{"is_active": *opts.IsActive})
+		baseQuery = baseQuery.Where(sq.Eq{"is_active": *opts.IsActive})
 	}
 
 	if opts.Keyword != "" {
@@ -147,12 +147,26 @@ func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, error
 		)
 		cleanKeyword := escaper.Replace(opts.Keyword)
 		pattern := "%" + cleanKeyword + "%"
-		query = query.Where(sq.Or{
+		baseQuery = baseQuery.Where(sq.Or{
 			sq.ILike{"slug": pattern},
 			sq.ILike{"url": pattern},
 		})
 	}
 
+	// Count query
+	countQuery := baseQuery.RemoveColumns().Columns("COUNT(*)")
+	sqlStr, args, err := countQuery.ToSql()
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var total int64
+	err = r.db.QueryRow(ctx, sqlStr, args...).Scan(&total)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// List query with pagination/sorting
 	// Strict Sorting Validation
 	sortMap := map[string]string{
 		"created_at": "created_at",
@@ -171,21 +185,21 @@ func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, error
 		sortDirection = "ASC"
 	}
 
-	query = query.OrderBy(fmt.Sprintf("%s %s", sortByColumn, sortDirection))
+	query := baseQuery.OrderBy(fmt.Sprintf("%s %s", sortByColumn, sortDirection))
 
 	if opts.Page > 0 && opts.PageSize > 0 {
 		offset := uint64((opts.Page - 1) * opts.PageSize)
 		query = query.Limit(uint64(opts.PageSize)).Offset(offset)
 	}
 
-	sqlStr, args, err := query.ToSql()
+	sqlStr, args, err = query.ToSql()
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 
 	rows, err := r.db.Query(ctx, sqlStr, args...)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	defer rows.Close()
 
@@ -201,10 +215,10 @@ func (r *repository) List(ctx context.Context, opts ListOptions) ([]*Link, error
 			&link.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, 0, err
 		}
 		links = append(links, &link)
 	}
 
-	return links, nil
+	return links, total, nil
 }
