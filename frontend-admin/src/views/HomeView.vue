@@ -73,6 +73,10 @@ const handlePageSizeChange = (size: number) => {
   fetchData()
 }
 
+const handleInputFocus = (event: FocusEvent) => {
+  ;(event.target as HTMLInputElement).select()
+}
+
 const handleJumpToPage = (event: Event) => {
   const target = event.target as HTMLInputElement
   let newPage = parseInt(target.value)
@@ -362,8 +366,8 @@ const formatDate = (dateStr: string) => {
     </div>
 
     <!-- Pagination -->
-    <div class="flex items-center justify-between px-2 py-4">
-      <div class="flex flex-1 items-center gap-4 text-sm text-muted-foreground">
+    <div class="flex flex-col items-center justify-between gap-4 px-2 py-4 sm:flex-row">
+      <div class="flex items-center gap-4 text-sm text-muted-foreground sm:flex-1">
         <div class="flex items-center gap-2">
           <span>Rows per page</span>
           <DropdownMenu>
@@ -395,9 +399,12 @@ const formatDate = (dateStr: string) => {
           <span class="mr-2">Page</span>
           <Input
             :model-value="page"
+            inputmode="numeric"
             class="h-8 w-12 text-center p-0"
             @change="handleJumpToPage"
             @keydown.enter="handleJumpToPage"
+            @focus="handleInputFocus"
+            pattern="[0-9]*"
             :disabled="isLoading"
           />
           <span class="ml-2">of {{ totalPages }}</span>
