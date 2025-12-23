@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -12,6 +13,8 @@ type Config struct {
 	Port            string
 	DatabaseDSN     string
 	TestDatabaseDSN string
+	IsProduction    bool
+	AllowOrigins    []string
 }
 
 func Load() (*Config, error) {
@@ -20,10 +23,24 @@ func Load() (*Config, error) {
 		log.Printf("failed to load .env file: %v", err)
 	}
 
+	appEnv := getEnv("APP_ENV", "production")
+	isProduction := true
+	if appEnv == "development" {
+		isProduction = false
+	}
+
+	allowOriginsRaw := getEnv("ALLOW_ORIGINS", "")
+	var allowOrigins []string
+	if allowOriginsRaw != "" {
+		allowOrigins = strings.Split(allowOriginsRaw, ",")
+	}
+
 	return &Config{
 		Port:            getEnv("PORT", "8080"),
 		DatabaseDSN:     buildDSN(getEnv("POSTGRES_DB", "linkhub")),
 		TestDatabaseDSN: buildDSN(getEnv("POSTGRES_TEST_DB", "linkhub_test")),
+		IsProduction:    isProduction,
+		AllowOrigins:    allowOrigins,
 	}, nil
 }
 
