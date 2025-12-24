@@ -3,11 +3,13 @@ package links
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 )
 
 var (
-	ErrSlugTaken = errors.New("slug already taken")
+	ErrSlugTaken    = errors.New("slug already taken")
+	ErrRedirectLoop = errors.New("target url cannot contain redirect domain")
 )
 
 type Service interface {
@@ -19,16 +21,22 @@ type Service interface {
 }
 
 type service struct {
-	repo Repository
+	repo           Repository
+	redirectDomain string
 }
 
-func NewService(repo Repository) Service {
+func NewService(repo Repository, redirectDomain string) Service {
 	return &service{
-		repo: repo,
+		repo:           repo,
+		redirectDomain: redirectDomain,
 	}
 }
 
 func (s *service) Create(ctx context.Context, slug, url string) error {
+	if strings.Contains(url, s.redirectDomain) {
+		return ErrRedirectLoop
+	}
+
 	// Check if slug exists
 	_, err := s.repo.GetBySlug(ctx, slug)
 	if err == nil {
@@ -56,6 +64,9 @@ func (s *service) Update(ctx context.Context, slug string, url *string, isActive
 	}
 
 	if url != nil {
+		if strings.Contains(*url, s.redirectDomain) {
+			return ErrRedirectLoop
+		}
 		link.URL = *url
 	}
 	if isActive != nil {

@@ -22,7 +22,7 @@ func setupRouter() *gin.Engine {
 	r := gin.Default()
 
 	repo := links.NewRepository(testPool)
-	svc := links.NewService(repo)
+	svc := links.NewService(repo, "localhost:8003")
 	handler := lhttp.NewHandler(svc)
 	lhttp.RegisterRoutes(r, handler)
 
@@ -95,6 +95,21 @@ func TestHTTP_CreateLink(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Redirect Domain Loop", func(t *testing.T) {
+		reqBody := map[string]string{
+			"slug": "loop-link-" + time.Now().Format("150405000000"),
+			"url":  "http://localhost:8003/some-path",
+		}
+		body, _ := json.Marshal(reqBody)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("POST", "/links", bytes.NewBuffer(body))
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "target url cannot contain redirect domain")
 	})
 }
 
@@ -279,6 +294,23 @@ func TestHTTP_UpdateLink(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+	})
+
+	t.Run("Update to Redirect Domain Loop", func(t *testing.T) {
+		slug := "http-update-loop-" + time.Now().Format("150405000000")
+		_ = repo.Create(ctx, slug, "http://valid.com")
+
+		reqBody := map[string]any{
+			"url": "http://localhost:8003/loop",
+		}
+		body, _ := json.Marshal(reqBody)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("PATCH", "/links/"+slug, bytes.NewBuffer(body))
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Contains(t, w.Body.String(), "target url cannot contain redirect domain")
 	})
 }
 

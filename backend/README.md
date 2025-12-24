@@ -106,7 +106,7 @@ If you want to run the Go application locally (outside Docker) while keeping the
 Nginx acts as the entry point and handles routing based on ports (or domains in production).
 
 - **Port 8001**: Proxies requests to the backend API.
-- **Port 8002**: Handles redirection. It rewrites `/{slug}` to `/public/{slug}` and forwards it to the backend.
+- **Port 8002**: Handles redirection. It rewrites `/{slug}` to `/redirect/{slug}` and forwards it to the backend.
 
 ## Database
 

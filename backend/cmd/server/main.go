@@ -38,7 +38,7 @@ func main() {
 
 	// Initialize Layers
 	linkRepo := links.NewRepository(pool)
-	linkService := links.NewService(linkRepo)
+	linkService := links.NewService(linkRepo, cfg.RedirectDomain)
 	linkHandler := linksHttp.NewHandler(linkService)
 
 	// Setup Server

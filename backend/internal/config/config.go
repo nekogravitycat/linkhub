@@ -15,6 +15,7 @@ type Config struct {
 	TestDatabaseDSN string
 	IsProduction    bool
 	AllowOrigins    []string
+	RedirectDomain  string
 }
 
 func Load() (*Config, error) {
@@ -44,6 +45,7 @@ func Load() (*Config, error) {
 		TestDatabaseDSN: buildDSN(getEnv("POSTGRES_TEST_DB", "linkhub_test")),
 		IsProduction:    isProduction,
 		AllowOrigins:    allowOrigins,
+		RedirectDomain:  getEnv("REDIRECT_DOMAIN", "localhost:8003"),
 	}, nil
 }
 

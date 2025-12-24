@@ -39,6 +39,8 @@ import { storeToRefs } from "pinia"
 import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
 
+const BASE_SHORT_URL = import.meta.env.VITE_SHORT_BASE_URL || "https://example.com"
+
 const linksStore = useLinksStore()
 const { links, total, loading: tableLoading, error } = storeToRefs(linksStore)
 
@@ -46,8 +48,6 @@ const isDialogOpen = ref(false)
 const selectedLink = ref<Link | null>(null)
 const isDeleteDialogOpen = ref(false)
 const linkToDelete = ref<Link | null>(null)
-
-const BASE_SHORT_URL = import.meta.env.VITE_SHORT_BASE_URL || "https://example.com"
 
 const sortBy = ref<"created_at" | "updated_at" | "slug">("created_at")
 const sortOrder = ref<"asc" | "desc">("desc")
@@ -191,16 +191,15 @@ const deleteLink = (link: Link) => {
 }
 
 const confirmDelete = async () => {
-  if (linkToDelete.value) {
-    try {
-      await linksStore.deleteLink(linkToDelete.value.slug)
-      toast.success("Link deleted successfully")
-      isDeleteDialogOpen.value = false
-      linkToDelete.value = null
-      await fetchData()
-    } catch (error) {
-      toast.error("Failed to delete link")
-    }
+  if (!linkToDelete.value) return
+  try {
+    await linksStore.deleteLink(linkToDelete.value.slug)
+    toast.success("Link deleted successfully")
+    isDeleteDialogOpen.value = false
+    linkToDelete.value = null
+    await fetchData()
+  } catch (error) {
+    toast.error("Failed to delete link")
   }
 }
 

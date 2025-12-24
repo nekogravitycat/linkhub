@@ -137,6 +137,10 @@ func (h *Handler) Create(c *gin.Context) {
 			c.JSON(http.StatusConflict, gin.H{"error": "slug already taken"})
 			return
 		}
+		if errors.Is(err, links.ErrRedirectLoop) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
@@ -172,6 +176,10 @@ func (h *Handler) Update(c *gin.Context) {
 	if err != nil {
 		if errors.Is(err, links.ErrLinkNotFound) {
 			c.JSON(http.StatusNotFound, gin.H{"error": "link not found"})
+			return
+		}
+		if errors.Is(err, links.ErrRedirectLoop) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

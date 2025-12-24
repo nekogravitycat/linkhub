@@ -33,22 +33,21 @@ const errorMessage = ref("")
 watch(
   () => props.open,
   (isOpen) => {
-    if (isOpen) {
-      if (props.linkToEdit) {
-        form.value = {
-          slug: props.linkToEdit.slug,
-          url: props.linkToEdit.url,
-          is_active: props.linkToEdit.is_active,
-        }
-      } else {
-        form.value = {
-          slug: "",
-          url: "",
-          is_active: true,
-        }
+    if (!isOpen) return
+    if (props.linkToEdit) {
+      form.value = {
+        slug: props.linkToEdit.slug,
+        url: props.linkToEdit.url,
+        is_active: props.linkToEdit.is_active,
       }
-      errorMessage.value = ""
+    } else {
+      form.value = {
+        slug: "",
+        url: "",
+        is_active: true,
+      }
     }
+    errorMessage.value = ""
   },
 )
 
@@ -89,6 +88,17 @@ const handleSubmit = async () => {
     if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
       errorMessage.value = "Target URL must start with http:// or https://"
       return
+    }
+
+    const shortBaseUrl = import.meta.env.VITE_SHORT_BASE_URL || "https://example.com"
+    try {
+      const shortBaseObj = new URL(shortBaseUrl)
+      if (urlObj.hostname === shortBaseObj.hostname) {
+        errorMessage.value = "Target URL cannot be the same as the shortener domain"
+        return
+      }
+    } catch (e) {
+      console.error("Invalid VITE_SHORT_BASE_URL", e)
     }
   } catch (e) {
     errorMessage.value = "Target URL must be a valid URL"
