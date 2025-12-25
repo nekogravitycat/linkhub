@@ -2,6 +2,7 @@ package http
 
 import (
 	"errors"
+	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -35,7 +36,8 @@ func (h *Handler) Redirect(c *gin.Context) {
 			c.AbortWithStatus(http.StatusNotFound)
 			return
 		}
-		c.AbortWithError(http.StatusInternalServerError, err)
+		log.Printf("internal server error while redirecting: %v", err)
+		c.AbortWithStatus(http.StatusInternalServerError)
 		return
 	}
 
@@ -51,12 +53,12 @@ func (h *Handler) Redirect(c *gin.Context) {
 func (h *Handler) List(c *gin.Context) {
 	var req ListRequest
 	if err := c.ShouldBindQuery(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
@@ -69,7 +71,7 @@ func (h *Handler) List(c *gin.Context) {
 
 	list, total, err := h.service.List(c.Request.Context(), opts)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, errorBody(err.Error()))
 		return
 	}
 
@@ -96,22 +98,22 @@ func (h *Handler) List(c *gin.Context) {
 func (h *Handler) Get(c *gin.Context) {
 	var uri BySlug
 	if err := c.ShouldBindUri(&uri); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := ValidateSlug(uri.Slug); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	link, err := h.service.Get(c.Request.Context(), uri.Slug)
 	if err != nil {
 		if errors.Is(err, links.ErrLinkNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "link not found"})
+			c.JSON(http.StatusNotFound, errorBody("link not found"))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, errorBody(err.Error()))
 		return
 	}
 
@@ -122,26 +124,26 @@ func (h *Handler) Get(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	var req CreateLinkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	err := h.service.Create(c.Request.Context(), req.Slug, req.URL)
 	if err != nil {
 		if errors.Is(err, links.ErrSlugTaken) {
-			c.JSON(http.StatusConflict, gin.H{"error": "slug already taken"})
+			c.JSON(http.StatusConflict, errorBody("slug already taken"))
 			return
 		}
 		if errors.Is(err, links.ErrRedirectLoop) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, errorBody(err.Error()))
 		return
 	}
 
@@ -152,37 +154,37 @@ func (h *Handler) Create(c *gin.Context) {
 func (h *Handler) Update(c *gin.Context) {
 	var uri BySlug
 	if err := c.ShouldBindUri(&uri); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := ValidateSlug(uri.Slug); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	var req UpdateLinkRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := req.Validate(); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	err := h.service.Update(c.Request.Context(), uri.Slug, req.URL, req.IsActive)
 	if err != nil {
 		if errors.Is(err, links.ErrLinkNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "link not found"})
+			c.JSON(http.StatusNotFound, errorBody("link not found"))
 			return
 		}
 		if errors.Is(err, links.ErrRedirectLoop) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, errorBody(err.Error()))
 		return
 	}
 
@@ -193,24 +195,28 @@ func (h *Handler) Update(c *gin.Context) {
 func (h *Handler) Delete(c *gin.Context) {
 	var uri BySlug
 	if err := c.ShouldBindUri(&uri); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	if err := ValidateSlug(uri.Slug); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		c.JSON(http.StatusBadRequest, errorBody(err.Error()))
 		return
 	}
 
 	err := h.service.Delete(c.Request.Context(), uri.Slug)
 	if err != nil {
 		if errors.Is(err, links.ErrLinkNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "link not found"})
+			c.JSON(http.StatusNotFound, errorBody("link not found"))
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, errorBody(err.Error()))
 		return
 	}
 
 	c.Status(http.StatusOK)
+}
+
+func errorBody(msg string) gin.H {
+	return gin.H{"error": msg}
 }
