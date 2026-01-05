@@ -165,6 +165,20 @@ func TestHTTP_Redirect(t *testing.T) {
 		assert.Equal(t, target, w.Header().Get("Location"))
 	})
 
+	t.Run("HEAD Success", func(t *testing.T) {
+		slug := "http-head-" + time.Now().Format("150405000000")
+		target := "https://example.org"
+		_ = repo.Create(ctx, slug, target)
+
+		w := httptest.NewRecorder()
+		req, _ := http.NewRequest("HEAD", "/redirect/"+slug, nil)
+		r.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusFound, w.Code)
+		assert.Equal(t, target, w.Header().Get("Location"))
+		assert.Empty(t, w.Body.String())
+	})
+
 	t.Run("Not Found", func(t *testing.T) {
 		w := httptest.NewRecorder()
 		req, _ := http.NewRequest("GET", "/redirect/nope", nil)

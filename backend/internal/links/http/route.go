@@ -6,6 +6,7 @@ import (
 
 func RegisterRoutes(r *gin.Engine, h *Handler) {
 	r.GET("/redirect/:slug", h.Redirect)
+	r.HEAD("/redirect/:slug", h.Redirect)
 
 	links := r.Group("/links")
 	{
