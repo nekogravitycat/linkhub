@@ -1,6 +1,6 @@
 services:
   database:
-    image: postgres:latest
+    image: postgres:alpine
     container_name: linkhub-db
     restart: always
     environment:
