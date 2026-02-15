@@ -40,7 +40,7 @@ func Load() (*Config, error) {
 	}
 
 	return &Config{
-		Port:            getEnv("PORT", "8080"),
+		Port:            getEnv("PORT", "8001"),
 		DatabaseDSN:     buildDSN(getEnv("POSTGRES_DB", "linkhub")),
 		TestDatabaseDSN: buildDSN(getEnv("POSTGRES_TEST_DB", "linkhub_test")),
 		IsProduction:    isProduction,

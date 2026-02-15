@@ -44,6 +44,7 @@ services:
       - "8002:8002" # Redirection Domain
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/404.html:/usr/share/nginx/html/404.html:ro
     depends_on:
       - api
 
