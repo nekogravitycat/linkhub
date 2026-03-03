@@ -4,9 +4,12 @@ import { Dialog, DialogDescription, DialogFooter, DialogHeader, DialogScrollCont
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
+import { useAppHaptics } from "@/composables/useAppHaptics"
 import { type Link, useLinksStore } from "@/stores/links"
 import { computed, ref, watch } from "vue"
 import { toast } from "vue-sonner"
+
+const { hapticError, hapticSuccess } = useAppHaptics()
 
 const props = defineProps<{
   open: boolean
@@ -59,27 +62,32 @@ const handleSubmit = async () => {
 
   if (!slug) {
     errorMessage.value = "Slug is required"
+    hapticError()
     return
   }
 
   if (slug.length > 32) {
     errorMessage.value = "Slug must be 32 characters or less"
+    hapticError()
     return
   }
 
   const slugRegex = /^[a-zA-Z0-9-_]+$/
   if (!slugRegex.test(slug)) {
     errorMessage.value = "Slug must contain only letters, numbers, hyphens, and underscores"
+    hapticError()
     return
   }
 
   if (!url) {
     errorMessage.value = "Target URL is required"
+    hapticError()
     return
   }
 
   if (url.length > 2048) {
     errorMessage.value = "Target URL must be 2048 characters or less"
+    hapticError()
     return
   }
 
@@ -87,6 +95,7 @@ const handleSubmit = async () => {
     const urlObj = new URL(url)
     if (urlObj.protocol !== "http:" && urlObj.protocol !== "https:") {
       errorMessage.value = "Target URL must start with http:// or https://"
+      hapticError()
       return
     }
 
@@ -95,6 +104,7 @@ const handleSubmit = async () => {
       const shortBaseObj = new URL(shortBaseUrl)
       if (urlObj.hostname === shortBaseObj.hostname) {
         errorMessage.value = "Target URL cannot be the same as the shortener domain"
+        hapticError()
         return
       }
     } catch (e) {
@@ -102,6 +112,7 @@ const handleSubmit = async () => {
     }
   } catch (e) {
     errorMessage.value = "Target URL must be a valid URL"
+    hapticError()
     return
   }
 
@@ -118,10 +129,12 @@ const handleSubmit = async () => {
     toast.success(isEditMode.value ? "Link updated successfully" : "Link created successfully")
     emit("saved")
     emit("update:open", false)
+    hapticSuccess()
   } catch (e: any) {
     const msg = e.response?.data?.error || e.message || "An error occurred"
     errorMessage.value = msg
     toast.error(msg)
+    hapticError()
   } finally {
     isLoading.value = false
   }

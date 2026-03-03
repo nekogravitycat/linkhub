@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { useAppHaptics } from "@/composables/useAppHaptics"
 import { type Link, useLinksStore } from "@/stores/links"
 import { useDebounceFn } from "@vueuse/core"
 import {
@@ -38,6 +39,8 @@ import {
 import { storeToRefs } from "pinia"
 import { computed, onMounted, ref, watch } from "vue"
 import { toast } from "vue-sonner"
+
+const { hapticError, hapticSuccess, hapticNudge } = useAppHaptics()
 
 const BASE_SHORT_URL = import.meta.env.VITE_SHORT_BASE_URL || "https://example.com"
 
@@ -179,9 +182,11 @@ const copyToClipboard = async (slug: string) => {
   try {
     await navigator.clipboard.writeText(url)
     toast.success("Shorten link copied!")
+    hapticNudge()
   } catch (err) {
     console.error("Failed to copy", err)
     toast.error("Failed to copy link")
+    hapticError()
   }
 }
 
@@ -195,11 +200,13 @@ const confirmDelete = async () => {
   try {
     await linksStore.deleteLink(linkToDelete.value.slug)
     toast.success("Link deleted successfully")
+    hapticSuccess()
     isDeleteDialogOpen.value = false
     linkToDelete.value = null
     await fetchData()
   } catch (error) {
     toast.error("Failed to delete link")
+    hapticError()
   }
 }
 
