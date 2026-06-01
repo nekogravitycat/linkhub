@@ -47,42 +47,23 @@ func run(cfg Config) error {
 	scenarios := cfg.scenarios()
 	printHeader(cfg, prefix, scenarios)
 
-	// Determine which pools must be seeded.
-	readNeeded := false
-	delNeeded := false
-	for _, name := range scenarios {
-		if needsReadPool(name) {
-			readNeeded = true
-		}
-		if name == "delete" {
-			delNeeded = true
-		}
-	}
-
-	if readNeeded {
-		if cfg.Seed < 1 {
-			return fmt.Errorf("scenarios %v need seeded links; set --seed >= 1", scenarios)
-		}
-		slugs, err := seedLinks(ctx, e, cfg.Seed, "read pool")
+	// With --db-dsn, the table is reset and reseeded with a standard pool before
+	// every scenario (setup/teardown over the DB; load stays over HTTP), so each
+	// scenario is measured from an identical, known state — results are
+	// independent of scenario order and comparable across runs. Without it, the
+	// pools are seeded once over HTTP (legacy behavior).
+	var fx *fixture
+	if cfg.DBDSN != "" {
+		var err error
+		fx, err = newFixture(ctx, cfg.DBDSN)
 		if err != nil {
-			return fmt.Errorf("seeding read pool failed (is the backend up?): %w", err)
+			return fmt.Errorf("open --db-dsn fixture (is Postgres reachable?): %w", err)
 		}
-		e.readPool = slugs
-	}
-
-	if delNeeded {
-		delN := cfg.Seed
-		if cfg.Requests > 0 {
-			delN = int(cfg.Requests)
-		}
-		if delN < 1 {
-			return fmt.Errorf("the delete scenario needs --seed or --requests >= 1")
-		}
-		slugs, err := seedLinks(ctx, e, delN, "delete pool")
-		if err != nil {
-			return fmt.Errorf("seeding delete pool failed (is the backend up?): %w", err)
-		}
-		e.delPool = slugs
+		defer fx.close()
+		fmt.Println("  fixture      db-assisted: reset + standard reseed before each scenario")
+		fmt.Println()
+	} else if err := seedHTTPPools(ctx, e, scenarios); err != nil {
+		return err
 	}
 
 	var results []Result
@@ -90,6 +71,11 @@ func run(cfg Config) error {
 		if ctx.Err() != nil {
 			fmt.Println("\ninterrupted — stopping early")
 			break
+		}
+		if fx != nil {
+			if err := fx.prepare(ctx, e, name); err != nil {
+				return fmt.Errorf("fixture prepare for %q: %w", name, err)
+			}
 		}
 		plan := planFor(name, cfg, len(e.delPool))
 		res := runScenario(ctx, e, name, scenarioBuild(name), plan)
@@ -114,7 +100,57 @@ func run(cfg Config) error {
 		}
 	}
 
-	cleanup(ctx, e, prefix)
+	if fx != nil {
+		if err := fx.reset(context.WithoutCancel(ctx)); err != nil {
+			fmt.Fprintf(os.Stderr, "\nfixture: final reset failed: %v\n", err)
+		} else {
+			fmt.Println("\nfixture: table reset to empty")
+		}
+	} else {
+		cleanup(ctx, e, prefix)
+	}
+	return nil
+}
+
+// seedHTTPPools seeds the read and/or delete pools once over HTTP (legacy path
+// used when --db-dsn is not provided).
+func seedHTTPPools(ctx context.Context, e *env, scenarios []string) error {
+	readNeeded := false
+	delNeeded := false
+	for _, name := range scenarios {
+		if needsReadPool(name) {
+			readNeeded = true
+		}
+		if name == "delete" {
+			delNeeded = true
+		}
+	}
+
+	if readNeeded {
+		if e.cfg.Seed < 1 {
+			return fmt.Errorf("scenarios %v need seeded links; set --seed >= 1", scenarios)
+		}
+		slugs, err := seedLinks(ctx, e, e.cfg.Seed, "read pool")
+		if err != nil {
+			return fmt.Errorf("seeding read pool failed (is the backend up?): %w", err)
+		}
+		e.readPool = slugs
+	}
+
+	if delNeeded {
+		delN := e.cfg.Seed
+		if e.cfg.Requests > 0 {
+			delN = int(e.cfg.Requests)
+		}
+		if delN < 1 {
+			return fmt.Errorf("the delete scenario needs --seed or --requests >= 1")
+		}
+		slugs, err := seedLinks(ctx, e, delN, "delete pool")
+		if err != nil {
+			return fmt.Errorf("seeding delete pool failed (is the backend up?): %w", err)
+		}
+		e.delPool = slugs
+	}
 	return nil
 }
 

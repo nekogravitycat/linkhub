@@ -13,7 +13,9 @@ A self-contained load-testing tool for the linkhub backend. It measures the
 | `delete`   | `DELETE /links/:slug`     | link deletion                             |
 | `mixed`    | weighted blend            | realistic traffic (read-heavy)            |
 
-Pure Go, **standard library only** — no install step, no external dependencies.
+Pure Go and **dependency-free in the default HTTP-only mode** — no install step.
+The optional `--db-dsn` fixture mode (see below) additionally uses `pgx` for
+database setup/teardown only.
 
 ## Requirements
 
@@ -46,6 +48,11 @@ go run . --scenario redirect -c 200 -d 30s --seed 5000
 
 # Open-loop: hold a target rate and watch latency
 go run . --scenario mixed --rate 500 -d 60s --seed 10000
+
+# Db-assisted fixtures: reset + reseed a standard pool before every scenario
+# (recommended for comparable before/after runs — see "Fixtures" below)
+go run . --scenario all -c 50 -d 30s --seed 10000 \
+  --db-dsn 'postgres://user:pass@localhost:5432/linkhub?sslmode=disable'
 ```
 
 ## Flags
@@ -66,7 +73,8 @@ go run . --scenario mixed --rate 500 -d 60s --seed 10000
 | `--redirect-domain` | `localhost:8003`        | excluded from generated URLs (match backend `REDIRECT_DOMAIN`)     |
 | `--out`             | _(none)_                | write per-scenario results as JSON                                 |
 | `--csv`             | _(none)_                | write per-scenario results as CSV                                  |
-| `--no-cleanup`      | `false`                 | leave seeded links in the database                                 |
+| `--no-cleanup`      | `false`                 | leave seeded links in the database (HTTP-only mode)                |
+| `--db-dsn`          | _(none)_                | Postgres DSN to enable db-assisted fixtures (reset+reseed per scenario) |
 
 ## How it works
 
@@ -92,6 +100,33 @@ go run . --scenario mixed --rate 500 -d 60s --seed 10000
 Scenarios run as: `create → get → list → redirect → update → mixed → delete`.
 `redirect`/`get` run while the seeded pool is pristine, and `delete` runs last
 because it consumes its own pool.
+
+## Fixtures and comparable runs (`--db-dsn`)
+
+By default the tool seeds once over HTTP and scenarios share the resulting table.
+That couples scenarios: the `create` scenario inserts rows for its whole duration,
+so by the time `list` runs the table is larger — and **faster `create` means a
+bigger table, which makes `list` look slower**. A backend improvement to `create`
+can therefore show up as a false regression in `list`, and leftover `create`/`mixed`
+rows from a previous run skew the next one.
+
+Pass `--db-dsn` to fix this. The tool then connects to Postgres and, **before every
+scenario**, `TRUNCATE`s the table and bulk-seeds (`COPY`) a standard pool of
+`--seed` links. Every scenario is measured from an identical, known state, so:
+
+- results are independent of scenario order and of how much data other scenarios
+  wrote, and
+- runs are directly comparable to each other (no cross-run leftovers).
+
+The DB connection is used **only** for this setup/teardown — all measured load
+still goes over HTTP. Seeded fixture slugs use a `<prefix>_<i>` namespace so they
+never collide with the `<prefix>-<n>` slugs `create`/`mixed` generate. The table is
+left empty when the run finishes.
+
+```bash
+go run . --scenario all -c 50 -d 30s --seed 10000 \
+  --db-dsn 'postgres://user:pass@localhost:5432/linkhub?sslmode=disable'
+```
 
 ## Reading the output
 
@@ -126,8 +161,10 @@ go tool pprof http://localhost:6060/debug/pprof/goroutine
   raw backend throughput. Point `--url` at the nginx-exposed ports to measure
   the production path including its limits — throughput will be capped
   accordingly (this is expected).
-- **Leftover data.** Links created by `create`/`mixed` are *not* auto-deleted
-  (their count is unbounded). The run prints its prefix; purge with
+- **Leftover data (HTTP-only mode).** Links created by `create`/`mixed` are *not*
+  auto-deleted (their count is unbounded). The run prints its prefix; purge with
   `DELETE FROM links WHERE slug LIKE '<prefix>%';` or `TRUNCATE links;`.
   Seeded read-pool links are cleaned up automatically unless `--no-cleanup`.
+  With `--db-dsn` this is a non-issue: the table is reset before each scenario and
+  left empty at the end.
 - Run against a **disposable / local** database, not production data.

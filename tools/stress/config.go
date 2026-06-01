@@ -24,6 +24,7 @@ type Config struct {
 	CSV            string
 	KeepAlive      bool
 	NoCleanup      bool
+	DBDSN          string
 }
 
 // validScenarios are the names accepted by --scenario (besides "all").
@@ -55,6 +56,7 @@ func parseConfig(args []string) (Config, error) {
 	fs.StringVar(&cfg.CSV, "csv", "", "write per-scenario results to this CSV file")
 	fs.BoolVar(&cfg.KeepAlive, "keepalive", true, "use HTTP keep-alive (set false to measure cold-connection cost)")
 	fs.BoolVar(&cfg.NoCleanup, "no-cleanup", false, "skip deleting seeded links at the end")
+	fs.StringVar(&cfg.DBDSN, "db-dsn", "", "Postgres DSN for db-assisted fixtures: reset+reseed a standard pool before each scenario (setup/teardown only; load stays over HTTP)")
 
 	if err := fs.Parse(args); err != nil {
 		return cfg, err
