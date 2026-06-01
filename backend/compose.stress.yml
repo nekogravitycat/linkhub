@@ -1,0 +1,8 @@
+# Temporary override for local stress testing: publishes the Postgres port to
+# the host so the backend (run via `go run`) and tools/stress can reach it.
+# Not committed; safe to delete. Use with:
+#   docker compose -f compose.yml -f compose.stress.yml up -d database
+services:
+  database:
+    ports:
+      - "5432:5432"

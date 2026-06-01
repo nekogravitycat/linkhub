@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// pgUniqueViolation is the PostgreSQL SQLSTATE code for a unique_violation.
+const pgUniqueViolation = "23505"
 
 var (
 	ErrLinkNotFound = errors.New("link not found")
@@ -48,6 +51,12 @@ func (r *repository) Create(ctx context.Context, slug string, url string) error 
 
 	_, err = r.db.Exec(ctx, sqlStr, args...)
 	if err != nil {
+		// Rely on the slug UNIQUE constraint instead of a pre-INSERT existence
+		// check, so creation is a single round-trip.
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+			return ErrSlugTaken
+		}
 		return err
 	}
 
@@ -86,10 +95,10 @@ func (r *repository) GetBySlug(ctx context.Context, slug string) (*Link, error) 
 }
 
 func (r *repository) Update(ctx context.Context, link *Link) error {
+	// updated_at is maintained by the update_links_updated_at trigger.
 	query := r.sb.Update("links").
 		Set("url", link.URL).
 		Set("is_active", link.IsActive).
-		Set("updated_at", time.Now()).
 		Where(sq.Eq{"slug": link.Slug})
 
 	sqlStr, args, err := query.ToSql()

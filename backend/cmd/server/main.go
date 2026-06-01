@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"net/http"
+	_ "net/http/pprof" // registers /debug/pprof handlers on http.DefaultServeMux
 	"os"
 	"os/signal"
 	"syscall"
@@ -16,7 +17,17 @@ import (
 	linksHttp "github.com/nekogravitycat/linkhub/internal/links/http"
 )
 
-const SERVER_SHUTDOWN_TIMEOUT = 5 * time.Second
+const (
+	SERVER_SHUTDOWN_TIMEOUT = 5 * time.Second
+
+	// HTTP server timeouts. Without these a slow or idle client can pin a
+	// goroutine indefinitely. WriteTimeout comfortably exceeds the slowest
+	// handler (list); redirects/lookups are sub-millisecond.
+	SERVER_READ_HEADER_TIMEOUT = 5 * time.Second
+	SERVER_READ_TIMEOUT        = 10 * time.Second
+	SERVER_WRITE_TIMEOUT       = 15 * time.Second
+	SERVER_IDLE_TIMEOUT        = 60 * time.Second
+)
 
 func main() {
 	// Setup Context for Gracedful Shutdown
@@ -36,18 +47,36 @@ func main() {
 	}
 	defer pool.Close()
 
-	// Initialize Layers
+	// Initialize Layers. The repository is wrapped with an in-memory cache for
+	// the hot single-slug lookup path (redirect/get); writes invalidate it.
 	linkRepo := links.NewRepository(pool)
+	linkRepo = links.NewCachedRepository(linkRepo, cfg.CacheSize, cfg.CacheTTL)
 	linkService := links.NewService(linkRepo, cfg.RedirectDomain)
 	linkHandler := linksHttp.NewHandler(linkService)
+
+	// Start pprof debug server when explicitly enabled (dev only).
+	// Served on its own listener/mux so profiling endpoints never touch the
+	// main API router or its port.
+	if cfg.PprofAddr != "" {
+		go func() {
+			log.Printf("Starting pprof server on %s (http://%s/debug/pprof/)", cfg.PprofAddr, cfg.PprofAddr)
+			if err := http.ListenAndServe(cfg.PprofAddr, nil); err != nil && err != http.ErrServerClosed {
+				log.Printf("pprof server stopped: %v", err)
+			}
+		}()
+	}
 
 	// Setup Server
 	r := api.NewRouter(cfg, linkHandler)
 
 	// Setup HTTP Server
 	srv := &http.Server{
-		Addr:    ":" + cfg.Port,
-		Handler: r,
+		Addr:              ":" + cfg.Port,
+		Handler:           r,
+		ReadHeaderTimeout: SERVER_READ_HEADER_TIMEOUT,
+		ReadTimeout:       SERVER_READ_TIMEOUT,
+		WriteTimeout:      SERVER_WRITE_TIMEOUT,
+		IdleTimeout:       SERVER_IDLE_TIMEOUT,
 	}
 
 	// Start Server

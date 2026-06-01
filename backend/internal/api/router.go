@@ -16,8 +16,13 @@ func NewRouter(cfg *config.Config, linkHandler *linksHttp.Handler) *gin.Engine {
 
 	r := gin.New()
 
-	// Global Middleware
-	r.Use(gin.Logger(), gin.Recovery())
+	// Global Middleware. In production nginx already logs access, and the
+	// per-request gin.Logger() is synchronous overhead on the hot redirect
+	// path, so only attach it in development. Recovery is always on.
+	if !cfg.IsProduction {
+		r.Use(gin.Logger())
+	}
+	r.Use(gin.Recovery())
 
 	// CORS Config
 	corsConfig := cors.DefaultConfig()

@@ -1,0 +1,8 @@
+# Compiled binary
+stress
+stress.exe
+
+# Run outputs (use --out / --csv to generate locally; not version-controlled)
+*.json
+*.csv
+*.log

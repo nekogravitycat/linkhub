@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 )
 
 var (
@@ -37,15 +36,8 @@ func (s *service) Create(ctx context.Context, slug, url string) error {
 		return ErrRedirectLoop
 	}
 
-	// Check if slug exists
-	_, err := s.repo.GetBySlug(ctx, slug)
-	if err == nil {
-		return ErrSlugTaken
-	}
-	if !errors.Is(err, ErrLinkNotFound) {
-		return err
-	}
-
+	// The repository maps the slug UNIQUE-constraint violation to ErrSlugTaken,
+	// so no separate existence check is needed (one round-trip instead of two).
 	return s.repo.Create(ctx, slug, url)
 }
 
@@ -72,7 +64,7 @@ func (s *service) Update(ctx context.Context, slug string, url *string, isActive
 	if isActive != nil {
 		link.IsActive = *isActive
 	}
-	link.UpdatedAt = time.Now()
+	// updated_at is maintained by the DB trigger; no need to set it here.
 
 	return s.repo.Update(ctx, link)
 }

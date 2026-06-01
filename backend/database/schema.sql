@@ -49,6 +49,12 @@ CREATE TRIGGER update_links_updated_at
 -- Optimized for your default sort: Created At (Newest -> Oldest)
 CREATE INDEX IF NOT EXISTS idx_links_created_at_desc ON links(created_at DESC);
 
+-- Filtered-list Optimization
+-- Supports the common list query: WHERE is_active = ? ORDER BY created_at DESC.
+-- Lets Postgres satisfy the filter and the sort from one index instead of
+-- scanning all rows when an is_active filter is applied.
+CREATE INDEX IF NOT EXISTS idx_links_active_created_at ON links(is_active, created_at DESC);
+
 -- Fuzzy Search Optimization
 -- These GIN indexes allow high-performance 'ILIKE %keyword%' queries.
 -- Without these, searching 100k+ rows will result in slow full-table scans.
