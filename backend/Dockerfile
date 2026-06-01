@@ -1,5 +1,7 @@
 # ==== Stage 1: Builder ====
-FROM golang:alpine AS builder
+# Pinned to a patched Go release (fixes reachable net/crypto/tls/x509 stdlib
+# advisories present in earlier 1.26.x). Bump deliberately.
+FROM golang:1.26.3-alpine AS builder
 
 # Install git (required if you have dependencies from git repositories)
 RUN apk add --no-cache git
