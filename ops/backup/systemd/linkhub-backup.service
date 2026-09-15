@@ -1,0 +1,15 @@
+[Unit]
+Description=LinkHub PostgreSQL Backup
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+# Replace with the absolute path to your LinkHub checkout's backend/
+# directory on this host, e.g. /opt/linkhub/backend. Do not leave this
+# pointing at a repository-relative path -- systemd units run with no
+# shell and no working-directory inference.
+WorkingDirectory=/REPLACE/WITH/PATH/TO/linkhub/backend
+ExecStart=/usr/bin/docker compose -f compose.yml --profile ops run --rm -T backup backup
+TimeoutStartSec=600

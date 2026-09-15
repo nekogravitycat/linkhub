@@ -48,5 +48,25 @@ services:
     depends_on:
       - api
 
+  # Operational tooling only: PostgreSQL backup/restore/cutover/rollback.
+  # Not part of the normal `docker compose up -d` stack -- only runs when
+  # explicitly invoked with `--profile ops`. See ops/backup/README.md.
+  backup:
+    image: linkhub-backup
+    container_name: linkhub-backup
+    profiles: ["ops"]
+    build:
+      context: ../ops/backup
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+      - .env.backup
+    environment:
+      POSTGRES_ADDR: database
+      POSTGRES_PORT: 5432
+    depends_on:
+      database:
+        condition: service_healthy
+
 volumes:
   linkhub-db-data:

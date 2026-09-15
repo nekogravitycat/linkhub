@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+# Host-side convenience wrapper around the LinkHub backup/restore Docker
+# Compose tooling. This script only calls Docker Compose -- all database
+# logic lives in the container scripts (backup.sh, list.sh, restore.sh,
+# cutover.sh, rollback.sh). Run this ON THE HOST (not inside a container).
+#
+# Usage:
+#   ./linkhub-backup backup
+#   ./linkhub-backup list
+#   ./linkhub-backup restore <backup-id>
+#   ./linkhub-backup cutover <restore-db-name>
+#   ./linkhub-backup rollback <pre-restore-db-name>
+set -Eeuo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BACKEND_DIR="$(cd "${SCRIPT_DIR}/../../backend" && pwd)"
+COMPOSE_FILE="${BACKEND_DIR}/compose.yml"
+
+compose() {
+    docker compose -f "$COMPOSE_FILE" "$@"
+}
+
+usage() {
+    cat <<'EOF'
+Usage: linkhub-backup <command> [args]
+
+Commands:
+  backup                          Create and upload a new backup to R2
+  list                             List valid completed backups in R2
+  restore <backup-id>              Restore a backup into a new "*_restore_*" database
+  cutover <restore-db-name>        Promote a restored database to production (destructive, confirmed)
+  rollback <pre-restore-db-name>   Revert a previous cutover (destructive, confirmed)
+  help                              Show this message
+
+Examples:
+  ./linkhub-backup backup
+  ./linkhub-backup list
+  ./linkhub-backup restore 2026-09-15T200000Z
+  ./linkhub-backup cutover linkhub_restore_20260915_200000
+  ./linkhub-backup rollback linkhub_pre_restore_20260915_203012
+EOF
+}
+
+require_env_files() {
+    [ -f "${BACKEND_DIR}/.env" ] \
+        || { echo "Missing ${BACKEND_DIR}/.env -- copy backend/.env.example and fill it in first." >&2; exit 1; }
+    [ -f "${BACKEND_DIR}/.env.backup" ] \
+        || { echo "Missing ${BACKEND_DIR}/.env.backup -- copy backend/.env.backup.example and fill it in first." >&2; exit 1; }
+}
+
+health_check() {
+    log() { printf '[linkhub-backup] %s\n' "$*" >&2; }
+    log "Waiting for API/Nginx to come back up..."
+    sleep 3
+    if compose ps --status running api nginx | grep -q linkhub; then
+        log "API and Nginx containers are running."
+    else
+        log "WARNING: API and/or Nginx containers do not appear to be running. Check 'docker compose -f ${COMPOSE_FILE} ps' and logs."
+    fi
+}
+
+cmd="${1:-help}"
+shift || true
+
+case "$cmd" in
+help | -h | --help)
+    usage
+    ;;
+backup | list)
+    require_env_files
+    compose --profile ops run --rm -T backup "$cmd" "$@"
+    ;;
+restore)
+    require_env_files
+    [ -n "${1:-}" ] || { echo "Usage: linkhub-backup restore <backup-id>" >&2; exit 1; }
+    compose --profile ops run --rm -T backup restore "$@"
+    ;;
+cutover)
+    require_env_files
+    restore_db="${1:-}"
+    [ -n "$restore_db" ] || { echo "Usage: linkhub-backup cutover <restore-db-name>" >&2; exit 1; }
+    echo "[linkhub-backup] Stopping API and Nginx before cutover..." >&2
+    compose stop api nginx
+    set +e
+    compose --profile ops run --rm backup cutover "$restore_db"
+    cutover_exit=$?
+    set -e
+    echo "[linkhub-backup] Restarting API and Nginx..." >&2
+    compose up -d api nginx
+    health_check
+    exit "$cutover_exit"
+    ;;
+rollback)
+    require_env_files
+    pre_restore_db="${1:-}"
+    [ -n "$pre_restore_db" ] || { echo "Usage: linkhub-backup rollback <pre-restore-db-name>" >&2; exit 1; }
+    echo "[linkhub-backup] Stopping API and Nginx before rollback..." >&2
+    compose stop api nginx
+    set +e
+    compose --profile ops run --rm backup rollback "$pre_restore_db"
+    rollback_exit=$?
+    set -e
+    echo "[linkhub-backup] Restarting API and Nginx..." >&2
+    compose up -d api nginx
+    health_check
+    exit "$rollback_exit"
+    ;;
+*)
+    echo "Unknown command: ${cmd}" >&2
+    usage
+    exit 1
+    ;;
+esac

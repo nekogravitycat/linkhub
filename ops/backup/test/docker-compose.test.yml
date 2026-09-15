@@ -1,0 +1,48 @@
+# Isolated integration test stack for the backup/restore toolset.
+# Spins up a throwaway PostgreSQL and a MinIO instance (S3-compatible,
+# standing in for Cloudflare R2 in this test) -- entirely separate from
+# backend/compose.yml and any real data. See run-integration-test.sh.
+services:
+  test-db:
+    image: postgres:18.2-alpine3.23
+    environment:
+      POSTGRES_USER: linkhub
+      POSTGRES_PASSWORD: test-password
+      POSTGRES_DB: linkhub
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U linkhub -d linkhub"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  test-minio:
+    image: quay.io/minio/minio:latest
+    environment:
+      MINIO_ROOT_USER: test-access-key
+      MINIO_ROOT_PASSWORD: test-secret-key
+    command: server /data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 2s
+      retries: 20
+
+  backup:
+    image: linkhub-backup:test
+    entrypoint: ["sleep", "infinity"]
+    environment:
+      POSTGRES_ADDR: test-db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: linkhub
+      POSTGRES_PASSWORD: test-password
+      POSTGRES_DB: linkhub
+      R2_ENDPOINT: http://test-minio:9000
+      R2_BUCKET: test-backups
+      R2_ACCESS_KEY_ID: test-access-key
+      R2_SECRET_ACCESS_KEY: test-secret-key
+      BACKUP_PREFIX: test/postgres
+    depends_on:
+      test-db:
+        condition: service_healthy
+      test-minio:
+        condition: service_healthy

@@ -72,6 +72,81 @@ To build and deploy the frontend:
     npx serve -s dist
     ```
 
+## Backup & Restore
+
+LinkHub ships with a daily PostgreSQL backup/restore toolset that uploads
+encrypted-in-transit, private backups to Cloudflare R2, and supports safe
+restore, production cutover, and rollback -- all from the CLI, with no
+changes required to the API or frontend.
+
+Full details (R2 setup, systemd scheduling, disaster recovery runbook) live
+in [`ops/backup/README.md`](ops/backup/README.md). The quick version:
+
+1.  Make sure `backend/.env` exists (copy `backend/.env.example` if not).
+
+2.  Create a **private** Cloudflare R2 bucket (e.g. `linkhub-backups`) and an
+    API token scoped to **Object Read & Write** on that bucket only -- not a
+    Global API Key.
+
+3.  Copy the backup env template and fill in your R2 credentials:
+
+    ```bash
+    cd backend
+    cp .env.backup.example .env.backup
+    ```
+
+    ```dotenv
+    R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
+    R2_BUCKET=linkhub-backups
+    R2_ACCESS_KEY_ID=<your-access-key-id>
+    R2_SECRET_ACCESS_KEY=<your-secret-access-key>
+    BACKUP_PREFIX=postgres
+    BACKUP_RETENTION_DAYS=30
+    ```
+
+    `backend/.env.backup` is git-ignored and must never be committed.
+
+4.  (Recommended) In the Cloudflare dashboard, add a **Lifecycle Rule** on
+    the bucket to expire objects after `BACKUP_RETENTION_DAYS`, and consider
+    enabling **Object Lock** with a 7-day retention window so recent
+    backups can't be deleted or overwritten even by mistake.
+
+5.  From the repository root, take your first backup:
+
+    ```bash
+    ./ops/backup/linkhub-backup backup
+    ```
+
+6.  List backups, restore one for inspection, or promote/roll back a
+    restore:
+
+    ```bash
+    ./ops/backup/linkhub-backup list
+    ./ops/backup/linkhub-backup restore <backup-id>
+    ./ops/backup/linkhub-backup cutover <restore-db-name>
+    ./ops/backup/linkhub-backup rollback <pre-restore-db-name>
+    ```
+
+    `restore` only ever creates a new, separate database -- it never
+    touches production. `cutover` and `rollback` are destructive and each
+    require typing the production database name to confirm.
+
+7.  Schedule daily backups on the production host with systemd (see
+    `ops/backup/systemd/` and the full instructions in
+    `ops/backup/README.md`):
+
+    ```bash
+    sudo cp ops/backup/systemd/linkhub-backup.{service,timer} /etc/systemd/system/
+    sudo $EDITOR /etc/systemd/system/linkhub-backup.service   # set WorkingDirectory
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now linkhub-backup.timer
+    ```
+
+If you ever need to rebuild LinkHub from scratch (lost server, lost disk),
+`ops/backup/README.md` has a full step-by-step Disaster Recovery runbook
+that only assumes you have this repository, your R2 backups, and your
+secrets.
+
 ## Security & Access Control
 
 ### API (`http://localhost:8001`)
