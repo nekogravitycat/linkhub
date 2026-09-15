@@ -167,6 +167,56 @@ only signal. If you need Slack/email/etc alerting later, treat it as a
 separate enhancement layered on top of `systemctl status`/journal, not a
 change to the scripts themselves.
 
+### 安裝後驗證
+
+裝完 timer 之後，建議依序跑過以下步驟，確認排程真的有生效：
+
+1. **確認 timer 已啟用且有排到下一次執行時間：**
+
+   ```bash
+   systemctl status linkhub-backup.timer
+   systemctl list-timers linkhub-backup.timer
+   ```
+
+   確認狀態是 `active`，且 `list-timers` 輸出裡的 `NEXT` 欄位有顯示下一次
+   執行時間。
+
+2. **檢查 service 檔裡的 `WorkingDirectory` 是否指到正確路徑：**
+
+   ```bash
+   cat /etc/systemd/system/linkhub-backup.service
+   ```
+
+   確認 `WorkingDirectory=` 指向實際 clone 這個 repo 的路徑（例如
+   `/home/<user>/linkhub`），因為備份腳本要從 repo 根目錄去找
+   `backend/.env` 等設定檔。
+
+3. **手動觸發一次 service，不用等排程時間就能驗證是否會成功執行：**
+
+   ```bash
+   sudo systemctl start linkhub-backup.service
+   ```
+
+   接著確認執行結果：
+
+   ```bash
+   systemctl status linkhub-backup.service
+   journalctl -u linkhub-backup.service -n 50 --no-pager
+   ```
+
+   確認沒有錯誤訊息，且腳本有順利連上資料庫並完成備份。
+
+4. **用 `list` 指令確認這次手動觸發的備份真的有落地到 R2：**
+
+   ```bash
+   ./ops/backup/linkhub-backup list
+   ```
+
+   應該能看到剛剛那次手動觸發產生的新 backup id，且其
+   `manifest.json` 狀態為 `complete`。
+
+四個步驟都通過，才算確認排程與備份腳本都設置正確。
+
 ## Manual cleanup
 
 `*_restore_*`, `*_pre_restore_*` and `*_failed_restore_*` databases are
