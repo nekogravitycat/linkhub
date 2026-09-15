@@ -17,7 +17,7 @@ services:
       timeout: 5s
       retries: 5
   api:
-    image: linkhub
+    image: ghcr.io/nekogravitycat/linkhub-backend:latest
     container_name: linkhub-api
     build:
       context: .
