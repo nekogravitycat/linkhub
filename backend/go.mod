@@ -1,6 +1,6 @@
 module github.com/nekogravitycat/linkhub
 
-go 1.26.3
+go 1.26.10
 
 require (
 	github.com/Masterminds/squirrel v1.5.4

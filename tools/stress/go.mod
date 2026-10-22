@@ -1,6 +1,6 @@
 module github.com/nekogravitycat/linkhub/tools/stress
 
-go 1.26.3
+go 1.26.10
 
 require github.com/jackc/pgx/v5 v5.9.2
 
